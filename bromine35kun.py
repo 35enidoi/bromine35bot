@@ -222,13 +222,10 @@ async def local_speed_watch():
         await create_note("ローカルの流速です:eyes_fidgeting:\n ノートの数;{}個 {}毎秒\n リノートの数;{}個 {}毎秒\n インターバル;{}分".format(notes, round(notes/(60*interval), 2), re_notes, round(re_notes/(60*interval), 2), interval))
 
 async def detect_not_follow():
-    followers = []
     not_in = []
     for i in mk.users_following(MY_USER_ID):
-        followers.append(i["followeeId"])
-    for i in mk.users_followers(MY_USER_ID):
-        if i["followerId"] not in followers:
-            not_in.append(i["followerId"])
+        if not i["followee"]["isFollowing"]:
+            not_in.append(i["followeeId"])
     for i in not_in:
         print(f"detect not follow! id:{i}")
         await create_follow(i)
