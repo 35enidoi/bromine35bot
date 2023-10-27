@@ -223,9 +223,9 @@ async def local_speed_watch():
 
 async def detect_not_follow():
     not_in = []
-    for i in mk.users_following(MY_USER_ID):
-        if not i["followee"]["isFollowing"]:
-            not_in.append(i["followeeId"])
+    for i in mk.users_followers(MY_USER_ID):
+        if not i["follower"]["isFollowing"]:
+            not_in.append(i["followerId"])
     for i in not_in:
         print(f"detect not follow! id:{i}")
         await create_follow(i)
