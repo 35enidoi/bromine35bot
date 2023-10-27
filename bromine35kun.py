@@ -53,7 +53,6 @@ async def connect_check():
             await textworkput(BOT_LOG_FILE, "yoteigai error;{} at {}".format(e,datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
             await asyncio.sleep(60)
         else:
-            print("checked")
             break
     await asyncio.sleep(2)
 
@@ -127,7 +126,7 @@ async def onnotify(note):
                     asyncio.create_task(cpuwatch_short(note["body"]["id"],visible))
                     return
                 elif "explosion" in note["body"]["text"]:
-                    print("explosive!!!")
+                    print("explosion!!!")
                     mk.notes_reactions_create(note["body"]["id"],":explosion:")
                     await asyncio.create_task(create_note("bot、爆発します。:explosion:"))
                     raise KeyboardInterrupt("errorrrrrrrrrrr!!!!")
