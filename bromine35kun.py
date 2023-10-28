@@ -1,4 +1,4 @@
-from misskey import Misskey
+from misskey import Misskey, exceptions
 import websockets
 import json
 import asyncio
@@ -224,14 +224,20 @@ async def local_speed_watch():
         await create_note("ローカルの流速です:eyes_fidgeting:\n ノートの数;{}個 {}毎秒\n リノートの数;{}個 {}毎秒\n インターバル;{}分".format(notes, round(notes/(60*interval), 2), re_notes, round(re_notes/(60*interval), 2), interval))
 
 async def detect_not_follow():
-    not_in = []
-    for i in mk.users_followers(MY_USER_ID):
-        if not i["follower"]["isFollowing"]:
-            not_in.append(i["followerId"])
-    for i in not_in:
-        print(f"detect not follow! id:{i}")
-        await create_follow(i)
+    try:
+        followers = mk.users_followers(MY_USER_ID)
+        not_in = []
+        for i in followers:
+            if not i["follower"]["isFollowing"]:
+                not_in.append(i["followerId"])
+        for i in not_in:
+            print(f"detect not follow! id:{i}")
+            await create_follow(i)
+            await asyncio.sleep(10)
+    except exceptions.MisskeyAPIException as e:
+        print(f"detect not follow error:{e}")
         await asyncio.sleep(10)
+        asyncio.create_task(detect_not_follow)
 
 async def kaibunsyo(noteid):
     kaibunsyo = ""
