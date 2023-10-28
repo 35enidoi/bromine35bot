@@ -53,7 +53,6 @@ async def connect_check():
             await textworkput(BOT_LOG_FILE, "yoteigai error;{} at {}".format(e,datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
             await asyncio.sleep(60)
         else:
-            print("checked")
             break
     await asyncio.sleep(2)
 
@@ -127,9 +126,9 @@ async def onnotify(note):
                     asyncio.create_task(cpuwatch_short(note["body"]["id"],visible))
                     return
                 elif "explosion" in note["body"]["text"]:
-                    print("explosive!!!")
+                    print("explosion!!!")
                     mk.notes_reactions_create(note["body"]["id"],":explosion:")
-                    await asyncio.create_task(create_note("bot、爆発します。:explosion:"))
+                    await create_note("bot、爆発します。:explosion:")
                     raise KeyboardInterrupt("errorrrrrrrrrrr!!!!")
         if note["body"]["user"].get("isBot"):
             print("mention bot detected")
@@ -141,8 +140,11 @@ async def onnotify(note):
             else:
                 asyncio.create_task(create_note("bomb!:explosion:", reply=note["body"]["id"]))
             asyncio.create_task(create_reaction(note["body"]["id"],"💣"))
+        elif "怪文書" in note["body"]["text"]:
+            print("kaibunsyo coming")
+            asyncio.create_task(kaibunsyo(note["body"]["id"]))
         else:
-            print("reply coming")
+            print("mention coming")
             asyncio.create_task(create_reaction(note["body"]["id"],"❤️"))
 
 async def create_reaction(id,reaction):
@@ -230,6 +232,13 @@ async def detect_not_follow():
         print(f"detect not follow! id:{i}")
         await create_follow(i)
         await asyncio.sleep(10)
+
+async def kaibunsyo(noteid):
+    kaibunsyo = ""
+    for i in mk.notes_global_timeline(random.randint(5,15)):
+        if i["text"] is not None:
+            kaibunsyo += i["text"].replace("\n", "")[0:random.randint(0,len(i["text"]) if len(i["text"]) <= 15 else 15)]
+    await create_note(kaibunsyo.replace("#", "＃").replace("@","*"),reply=noteid)
 
 asyncio.run(textworkput(BOT_LOG_FILE,"bot start at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
 print("start")
