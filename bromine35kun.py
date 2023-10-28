@@ -241,7 +241,7 @@ async def detect_not_follow():
 
 async def kaibunsyo(noteid):
     kaibunsyo = ""
-    for i in mk.notes_global_timeline(random.randint(5,15)):
+    for i in mk.notes_local_timeline(random.randint(5,15)):
         if i["text"] is not None:
             kaibunsyo += i["text"].replace("\n", "")[0:random.randint(0,len(i["text"]) if len(i["text"]) <= 15 else 15)]
     await create_note(kaibunsyo.replace("#", "＃").replace("@","*"),reply=noteid)
