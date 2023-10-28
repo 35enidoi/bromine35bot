@@ -141,6 +141,7 @@ async def onnotify(note):
                 asyncio.create_task(create_note("bomb!:explosion:", reply=note["body"]["id"]))
             asyncio.create_task(create_reaction(note["body"]["id"],"💣"))
         elif "怪文書" in note["body"]["text"]:
+            print("kaibunsyo coming")
             asyncio.create_task(kaibunsyo(note["body"]["id"]))
         else:
             print("mention coming")
