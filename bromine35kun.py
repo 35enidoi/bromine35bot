@@ -95,12 +95,12 @@ async def runner(channel,id):
 async def onnote(note):
     if note.get("text"):
         text_ = note["text"]
-        if note["user"].get("isBot"):
+        if note["user"]["isBot"]:
             pass
-        elif note.get("cw"):
+        elif note["cw"] is not None:
             pass
         elif any(char in text_ for char in map(str, LIST_DETECT_JYOPA)):
-            print(f"jyopa detect noteid;{note['text']}")
+            print(f"jyopa detect noteid;{note['id']}")
             asyncio.create_task(create_reaction(note["id"], ":blobcat_frustration:"))
     if note.get("renoteId"):
         await notes_queue.put(("renote",note["userId"]))
@@ -130,7 +130,7 @@ async def onnotify(note):
                     mk.notes_reactions_create(note["body"]["id"],":explosion:")
                     await create_note("bot、爆発します。:explosion:")
                     raise KeyboardInterrupt("errorrrrrrrrrrr!!!!")
-        if note["body"]["user"].get("isBot"):
+        if note["body"]["user"]["isBot"]:
             print("mention bot detected")
             print(note["body"]["user"]["name"])
         elif "ping" in note["body"]["text"]:
@@ -242,7 +242,9 @@ async def detect_not_follow():
 async def kaibunsyo(noteid):
     kaibunsyo = ""
     for i in mk.notes_local_timeline(random.randint(5,15)):
-        if i["text"] is not None:
+        if i["cw"] is not None:
+            pass
+        elif i["text"] is not None:
             kaibunsyo += i["text"].replace("\n", "")[0:random.randint(0,len(i["text"]) if len(i["text"]) <= 15 else 15)]
     await create_note(kaibunsyo.replace("#", "＃").replace("@","*"),reply=noteid)
 
