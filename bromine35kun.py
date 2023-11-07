@@ -258,6 +258,7 @@ except KeyboardInterrupt as e:
         asyncio.run(create_note("botとまります:blob_hello:"))
 else:
     asyncio.run(create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
+    raise
 finally:
     mk.notes_reactions_create("9iisgwj3rf", "❌")
     asyncio.run(textworkput(BOT_LOG_FILE,"bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
