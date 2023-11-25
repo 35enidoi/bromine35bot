@@ -1,6 +1,5 @@
 from misskey import Misskey, exceptions
 import websockets
-from requests import exceptions
 import json
 import asyncio
 from datetime import datetime
@@ -27,16 +26,13 @@ async def main():
     mk.notes_reactions_create("9iisgwj3rf", "✅")
     pendings = [local_speed_watch()]
     other = asyncio.gather(*pendings, return_exceptions=True)
+    await asyncio.create_task(runner(("main","localTimeline"), ("notifys","localtl")))
+    other.cancel()
     try:
-        await asyncio.create_task(runner(("main","localTimeline"), ("notifys","localtl")))
-    except Exception:
-        other.cancel()
-        try:
-            await other
-        except asyncio.exceptions.CancelledError:
-            print("catch")
-        print("main finish")
-        raise
+        await other
+    except asyncio.exceptions.CancelledError:
+        print("catch")
+    print("main finish")
 
 async def connect_check():
     while True:
@@ -94,7 +90,7 @@ async def runner(channel,id):
             print(e)
             print(channel)
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
-            raise
+            break
 
 async def onnote(note):
     if note.get("text"):
@@ -238,7 +234,7 @@ async def detect_not_follow():
             print(f"detect not follow! id:{i}")
             await create_follow(i)
             await asyncio.sleep(10)
-    except (exceptions.MisskeyAPIException, exceptions.ReadTimeout) as e:
+    except exceptions.MisskeyAPIException as e:
         print(f"detect not follow error:{e}")
         await asyncio.sleep(10)
         asyncio.create_task(detect_not_follow)
@@ -260,8 +256,8 @@ except KeyboardInterrupt as e:
     print("break!!!")
     if len(e.args) == 0:
         asyncio.run(create_note("botとまります:blob_hello:"))
-except Exception:
+else:
     asyncio.run(create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
 finally:
-    asyncio.run(create_reaction("9iisgwj3rf","❌"))
+    mk.notes_reactions_create("9iisgwj3rf", "❌")
     asyncio.run(textworkput(BOT_LOG_FILE,"bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
