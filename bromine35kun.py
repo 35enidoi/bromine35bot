@@ -79,7 +79,7 @@ async def runner(channel,id):
                         else:
                             if data["body"]["type"] == "note":
                                 asyncio.create_task(onnote(data["body"]["body"]))
-        except (websockets.exceptions.ConnectionClosedError, websockets.exceptions.ConnectionClosedOK, asyncio.exceptions.TimeoutError) as e:
+        except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
             print("error occured")
             print(e)
             await textworkput(BOT_LOG_FILE,"error occured:{} at {}".format(e,datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
@@ -87,8 +87,7 @@ async def runner(channel,id):
             await connect_check()
             continue
         except Exception as e:
-            print(e)
-            print(channel)
+            print(e, e.args)
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
             break
 
@@ -258,7 +257,6 @@ except KeyboardInterrupt as e:
         asyncio.run(create_note("botとまります:blob_hello:"))
 else:
     asyncio.run(create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
-    raise
 finally:
     mk.notes_reactions_create("9iisgwj3rf", "❌")
     asyncio.run(textworkput(BOT_LOG_FILE,"bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
