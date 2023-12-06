@@ -126,7 +126,7 @@ async def onnotify(note):
                     return
                 elif "explosion" in note["body"]["text"]:
                     print("explosion!!!")
-                    mk.notes_reactions_create(note["body"]["id"],":explosion:")
+                    await asyncio.create_task(create_reaction(note["body"]["id"],":explosion:",Instant=True))
                     await create_note("bot、爆発します。:explosion:")
                     raise KeyboardInterrupt("errorrrrrrrrrrr!!!!")
         if note["body"]["user"]["isBot"]:
@@ -138,7 +138,7 @@ async def onnotify(note):
                 asyncio.create_task(create_note("bomb!:explosion:", reply=note["body"]["id"], direct=[note["body"]["userId"]]))
             else:
                 asyncio.create_task(create_note("bomb!:explosion:", reply=note["body"]["id"]))
-            asyncio.create_task(create_reaction(note["body"]["id"],"💣"))
+            asyncio.create_task(create_reaction(note["body"]["id"],"💣",Instant=True))
         elif "怪文書" in note["body"]["text"]:
             print("kaibunsyo coming")
             asyncio.create_task(kaibunsyo(note["body"]["id"]))
@@ -146,8 +146,9 @@ async def onnotify(note):
             print("mention coming")
             asyncio.create_task(create_reaction(note["body"]["id"],"❤️"))
 
-async def create_reaction(id,reaction):
-    await asyncio.sleep(random.randint(3,5))
+async def create_reaction(id,reaction,Instant=False):
+    if not Instant:
+        await asyncio.sleep(random.randint(3,5))
     try:
         mk.notes_reactions_create(id,reaction)
         print("create reaction",reaction)
