@@ -17,7 +17,9 @@ notes_queue = asyncio.Queue()
 
 mk = Misskey("misskey.io", i=TOKEN)
 MY_USER_ID = mk.i()["id"]
-LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",":_ma::_lu::_a::_wave:","まぅあ～")
+LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
+                     ":_ma::_lu::_a::_wave:","まぅあ～",
+                     ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
 async def main():
     print("main start")
