@@ -244,7 +244,11 @@ async def detect_not_follow():
 
 async def kaibunsyo(noteid):
     kaibunsyo = ""
-    for i in mk.notes_local_timeline(random.randint(5,15)):
+    try:
+        notes = await asyncio.to_thread(mk.notes_local_timeline, random.randint(5,15))
+    except exceptions.MisskeyAPIException:
+        return
+    for i in notes:
         if i["cw"] is not None:
             pass
         elif i["text"] is not None:
