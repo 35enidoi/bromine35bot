@@ -227,7 +227,7 @@ async def local_speed_watch():
 
 async def detect_not_follow():
     try:
-        followers = asyncio.to_thread(mk.users_followers, user_id=MY_USER_ID)
+        followers = await asyncio.to_thread(mk.users_followers, user_id=MY_USER_ID)
         not_in = []
         for i in followers:
             if not i["follower"]["isFollowing"] and not i["follower"]["hasPendingFollowRequestFromYou"]:
