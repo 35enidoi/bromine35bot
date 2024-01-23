@@ -230,12 +230,13 @@ async def detect_not_follow():
         followers = asyncio.to_thread(mk.users_followers, user_id=MY_USER_ID)
         not_in = []
         for i in followers:
-            if not i["follower"]["isFollowing"]:
+            if not i["follower"]["isFollowing"] and not i["follower"]["hasPendingFollowRequestFromYou"]:
                 not_in.append(i["followerId"])
         for i in not_in:
             print(f"detect not follow! id:{i}")
             await create_follow(i)
             await asyncio.sleep(10)
+
     except exceptions.MisskeyAPIException as e:
         print(f"detect not follow error:{e}")
         await asyncio.sleep(10)
