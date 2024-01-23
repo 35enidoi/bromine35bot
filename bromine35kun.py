@@ -152,15 +152,15 @@ async def create_reaction(id,reaction,Instant=False):
     if not Instant:
         await asyncio.sleep(random.randint(3,5))
     try:
-        mk.notes_reactions_create(id,reaction)
-        print("create reaction",reaction)
+        await asyncio.to_thread(mk.notes_reactions_create, id, reaction)
+        print("create reaction", reaction)
     except Exception as e:
         print("create reaction fail")
         print(e)
 
 async def create_follow(id):
     try:
-        mk.following_create(id)
+        await asyncio.to_thread(mk.following_create, id)
         print(f"follow create success id;{id}")
     except Exception as e:
         print(f"follow fail;{e}")
@@ -171,7 +171,7 @@ async def create_note(text,cw=None,direct=None,reply=None):
     else:
         notevisible = "specified"
     try:
-        mk.notes_create(text,cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
+        await asyncio.to_thread(mk.notes_create, text, cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
         print("note create")
     except Exception as e:
         print(f"note create fail:{e}")
@@ -227,7 +227,7 @@ async def local_speed_watch():
 
 async def detect_not_follow():
     try:
-        followers = mk.users_followers(MY_USER_ID)
+        followers = asyncio.to_thread(mk.users_followers, user_id=MY_USER_ID)
         not_in = []
         for i in followers:
             if not i["follower"]["isFollowing"]:
