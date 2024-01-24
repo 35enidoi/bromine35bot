@@ -13,6 +13,7 @@ INSTANCE = "misskey.io"
 WS_URL = f'wss://{INSTANCE}/streaming?i={TOKEN}'
 HOST_USER_ID = "9gwek19h00"
 BOT_LOG_FILE = "botlog.txt"
+TESTMODE = True
 
 notes_queue = asyncio.Queue()
 
@@ -25,8 +26,9 @@ LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
 async def main():
     print("main start")
     await connect_check()
-    await create_note("bot、動きます。:ablobblewobble:")
-    mk.notes_reactions_create("9iisgwj3rf", "✅")
+    if not TESTMODE:
+        await create_note("bot、動きます。:ablobblewobble:")
+        mk.notes_reactions_create("9iisgwj3rf", "✅")
     pendings = [local_speed_watch()]
     other = asyncio.gather(*pendings, return_exceptions=True)
     await asyncio.create_task(runner())
@@ -277,9 +279,12 @@ try:
 except KeyboardInterrupt as e:
     print("break!!!")
     if len(e.args) == 0:
-        asyncio.run(create_note("botとまります:blob_hello:"))
+        if not TESTMODE:
+            asyncio.run(create_note("botとまります:blob_hello:"))
 else:
-    asyncio.run(create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
+    if not TESTMODE:
+        asyncio.run(create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
 finally:
-    mk.notes_reactions_create("9iisgwj3rf", "❌")
-    asyncio.run(textworkput(BOT_LOG_FILE,"bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
+    if not TESTMODE:
+        mk.notes_reactions_create("9iisgwj3rf", "❌")
+        asyncio.run(textworkput(BOT_LOG_FILE,"bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S"))))
