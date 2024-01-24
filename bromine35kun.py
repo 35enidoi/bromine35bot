@@ -3,6 +3,7 @@ import websockets
 import json
 import asyncio
 from datetime import datetime
+import uuid
 import subprocess
 import random
 import os
@@ -59,30 +60,39 @@ async def connect_check():
     await asyncio.sleep(2)
 
 async def runner():
-    CHANNEL = ("main","localTimeline")
-    IDS = ("notifys","localtl")
+    __CONST_CHANNEL = ("main", "localTimeline")
+    __CONST_FUNCS = (onnotify, onnote)
+    # データ構造
+    # 接続するチャンネル : (uuid4, 受け取り関数(async))
+    # dict(str : tuple(str, coroutinefunc))
+    channels = {v:(str(uuid.uuid4()), __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
     while True:
         try:
             asyncio.create_task(detect_not_follow())
             print("connect start")
             async with websockets.connect(WS_URL) as ws:
-                for i in range(len(CHANNEL)):
+                for i, v in channels.items():
                     await ws.send(json.dumps({        
                     "type": "connect",
                     "body": {
-                        "channel": "{}".format(CHANNEL[i]),
-                        "id": IDS[i]
+                        "channel": str(i),
+                        "id": str(v[0])
                     }
                     }))
-                print(CHANNEL,"connect")
+                print(channels.keys(),"connect")
                 while True:
                     data = json.loads(await ws.recv())
                     if data['type'] == 'channel':
-                        if data['body']['id'] == IDS[0]:
-                            asyncio.create_task(onnotify(data["body"]))
+                        for i in channels.values():
+                            if data["body"]["id"] == i[0]:
+                                asyncio.create_task(i[1](data["body"]))
+                                break
                         else:
-                            if data["body"]["type"] == "note":
-                                asyncio.create_task(onnote(data["body"]["body"]))
+                            print("謎のチャンネルからのデータが来ました")
+                            print(data)
+                    else:
+                        print("channel以外からのデータが来ました")
+                        print(data["type"])
 
         except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
             print("error occured")
@@ -98,6 +108,7 @@ async def runner():
             break
 
 async def onnote(note):
+    note = note["body"]
     if note.get("text"):
         text_ = note["text"]
         if note["user"]["isBot"]:
