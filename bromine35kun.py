@@ -62,32 +62,36 @@ async def connect_check():
     await asyncio.sleep(2)
 
 async def runner():
-    __CONST_CHANNEL = ("main", "localTimeline")
-    __CONST_FUNCS = (onnotify, onnote)
+    __CONST_CHANNEL = ("main", "localTimeline", "reversi")
+    __CONST_FUNCS = (onnotify, onnote, onreversi)
+    global wscon
     # データ構造
     # 接続するチャンネル : (uuid4, 受け取り関数(async))
     # dict(str : tuple(str, coroutinefunc))
+    global channels
     channels = {v:(str(uuid.uuid4()), __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
+    channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
     while True:
         try:
             asyncio.create_task(detect_not_follow())
             print("connect start")
             async with websockets.connect(WS_URL) as ws:
+                wscon = ws
                 for i, v in channels.items():
                     await ws.send(json.dumps({        
                     "type": "connect",
                     "body": {
-                        "channel": str(i),
-                        "id": str(v[0])
+                        "channel": v[0],
+                        "id": i
                     }
                     }))
                 print(channels.keys(),"connect")
                 while True:
                     data = json.loads(await ws.recv())
                     if data['type'] == 'channel':
-                        for i in channels.values():
-                            if data["body"]["id"] == i[0]:
-                                asyncio.create_task(i[1](data["body"]))
+                        for i, v in channels.items():
+                            if data["body"]["id"] == i:
+                                asyncio.create_task(v[1](data["body"]))
                                 break
                         else:
                             print("謎のチャンネルからのデータが来ました")
@@ -108,6 +112,38 @@ async def runner():
             print(e, e.args)
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
             break
+
+async def add_channel(channel:str, func) -> str:
+    id = str(uuid.uuid4)
+    channels[id] = (channel, func)
+    try:
+        await wscon.send(json.dumps({        
+                        "type": "connect",
+                        "body": {
+                            "channel": channel,
+                            "id": id
+                        }
+                        }))
+    except websockets.exceptions.WebSocketException as e:
+        print("fail to create channel", e.args)
+    return id
+
+async def del_channel(id:str) -> bool:
+    if not id in channels:
+        print("No such id")
+        return False
+    else:
+        try:
+            await wscon.send(json.dumps({        
+                            "type": "disconnect",
+                            "body": {
+                                "id": id
+                            }
+                            }))
+            del channels[id]
+        except websockets.exceptions.WebSocketException as e:
+            print("fail to delete channel", e.args)
+        return True
 
 async def onnote(note):
     note = note["body"]
@@ -164,6 +200,9 @@ async def onnotify(note):
         else:
             print("mention coming")
             asyncio.create_task(create_reaction(note["body"]["id"],"❤️"))
+
+async def onreversi(info):
+    print(info)
 
 async def create_reaction(id,reaction,Instant=False):
     if not Instant:
