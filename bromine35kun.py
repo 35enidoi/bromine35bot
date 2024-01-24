@@ -81,6 +81,7 @@ async def runner(channel,id):
                         else:
                             if data["body"]["type"] == "note":
                                 asyncio.create_task(onnote(data["body"]["body"]))
+
         except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
             print("error occured")
             print(e)
@@ -88,6 +89,7 @@ async def runner(channel,id):
             await asyncio.sleep(2)
             await connect_check()
             continue
+
         except Exception as e:
             print(e, e.args)
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
