@@ -28,7 +28,7 @@ async def main():
     mk.notes_reactions_create("9iisgwj3rf", "✅")
     pendings = [local_speed_watch()]
     other = asyncio.gather(*pendings, return_exceptions=True)
-    await asyncio.create_task(runner(("main","localTimeline"), ("notifys","localtl")))
+    await asyncio.create_task(runner())
     other.cancel()
     try:
         await other
@@ -58,25 +58,27 @@ async def connect_check():
             break
     await asyncio.sleep(2)
 
-async def runner(channel,id):
+async def runner():
+    CHANNEL = ("main","localTimeline")
+    IDS = ("notifys","localtl")
     while True:
         try:
             asyncio.create_task(detect_not_follow())
             print("connect start")
             async with websockets.connect(WS_URL) as ws:
-                for i in range(len(channel)):
+                for i in range(len(CHANNEL)):
                     await ws.send(json.dumps({        
                     "type": "connect",
                     "body": {
-                        "channel": "{}".format(channel[i]),
-                        "id": id[i]
+                        "channel": "{}".format(CHANNEL[i]),
+                        "id": IDS[i]
                     }
                     }))
-                print(channel,"connect")
+                print(CHANNEL,"connect")
                 while True:
                     data = json.loads(await ws.recv())
                     if data['type'] == 'channel':
-                        if data['body']['id'] == id[0]:
+                        if data['body']['id'] == IDS[0]:
                             asyncio.create_task(onnotify(data["body"]))
                         else:
                             if data["body"]["type"] == "note":
