@@ -31,13 +31,18 @@ async def main():
         mk.notes_reactions_create("9iisgwj3rf", "✅")
     pendings = [local_speed_watch()]
     other = asyncio.gather(*pendings, return_exceptions=True)
-    await asyncio.create_task(runner())
-    other.cancel()
     try:
-        await other
-    except asyncio.exceptions.CancelledError:
-        print("catch")
-    print("main finish")
+        await asyncio.create_task(runner())
+    except Exception as e:
+        raise e
+    finally:
+        other.cancel()
+        try:
+            await other
+        except asyncio.exceptions.CancelledError:
+            print("catch")
+        asyncio.current_task
+        print("main finish")
 
 async def connect_check():
     while True:
