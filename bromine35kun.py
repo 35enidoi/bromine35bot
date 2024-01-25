@@ -120,8 +120,11 @@ async def runner():
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
             break
 
-async def add_channel(channel:str, func, **dicts) -> str:
-    dicts["id"] = str(uuid.uuid4)
+async def add_channel(channel:str, func, id=None, **dicts) -> str:
+    if id is None:
+        dicts["id"] = str(uuid.uuid4)
+    else:
+        dicts["id"] = id
     dicts["channel"] = channel
     channels[dicts["id"]] = (channel, func)
     try:
