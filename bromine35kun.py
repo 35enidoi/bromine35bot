@@ -133,7 +133,7 @@ async def add_channel(channel:str, func, **dicts) -> str:
         print("fail to create channel", e.args)
     return dicts["id"]
 
-async def send_channel(id:str, _type:str, **dicts):
+async def send_channel(id:str, _type:str, **dicts) -> bool:
     if not id in channels:
         print("No such id")
         return False
