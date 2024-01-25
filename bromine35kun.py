@@ -211,6 +211,11 @@ async def onnotify(note):
 
 async def onreversi(info):
     print(info)
+    if info["type"] == "invited":
+        res = await api_post("reversi/match", 30, userid=info["body"]["user"]["id"])
+        print("onreverse put post")
+        print(f"status:{res.status_code}")
+        print(f"content:{res.json()}")
 
 async def api_post(endp:str, wttime:int, **dicts) -> requests.Response:
     url = f"https://{INSTANCE}/api/"+endp
