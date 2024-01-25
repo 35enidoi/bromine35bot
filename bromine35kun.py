@@ -120,20 +120,18 @@ async def runner():
             await textworkput(BOT_LOG_FILE,f"fatal Error; {e}")
             break
 
-async def add_channel(channel:str, func) -> str:
-    id = str(uuid.uuid4)
-    channels[id] = (channel, func)
+async def add_channel(channel:str, func, **dicts) -> str:
+    dicts["id"] = str(uuid.uuid4)
+    dicts["channel"] = channel
+    channels[dicts["id"]] = (channel, func)
     try:
         await wscon.send(json.dumps({        
                         "type": "connect",
-                        "body": {
-                            "channel": channel,
-                            "id": id
-                        }
+                        "body": dicts
                         }))
     except websockets.exceptions.WebSocketException as e:
         print("fail to create channel", e.args)
-    return id
+    return dicts["id"]
 
 async def del_channel(id:str) -> bool:
     if not id in channels:
