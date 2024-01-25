@@ -14,6 +14,7 @@ WS_URL = f'wss://{INSTANCE}/streaming?i={TOKEN}'
 HOST_USER_ID = "9gwek19h00"
 BOT_LOG_FILE = "botlog.txt"
 TESTMODE = True
+explosion = False
 
 notes_queue = asyncio.Queue()
 
@@ -41,7 +42,6 @@ async def main():
             await other
         except asyncio.exceptions.CancelledError:
             print("catch")
-        asyncio.current_task
         print("main finish")
 
 async def connect_check():
@@ -92,6 +92,8 @@ async def runner():
                 print(channels.keys(),"connect")
                 while True:
                     data = json.loads(await ws.recv())
+                    if explosion:
+                        raise KeyboardInterrupt
                     if data['type'] == 'channel':
                         for i, v in channels.items():
                             if data["body"]["id"] == i:
@@ -187,7 +189,8 @@ async def onnotify(note):
                     print("explosion!!!")
                     await asyncio.create_task(create_reaction(note["body"]["id"],":explosion:",Instant=True))
                     await create_note("bot、爆発します。:explosion:")
-                    raise KeyboardInterrupt("errorrrrrrrrrrr!!!!")
+                    global explosion
+                    explosion = True
         if note["body"]["user"]["isBot"]:
             print("mention bot detected")
             print(note["body"]["user"]["name"])
