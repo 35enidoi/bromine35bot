@@ -133,6 +133,22 @@ async def add_channel(channel:str, func, **dicts) -> str:
         print("fail to create channel", e.args)
     return dicts["id"]
 
+async def send_channel(id:str, _type:str, **dicts):
+    if not id in channels:
+        print("No such id")
+        return False
+    else:
+        dicts["id"] = id
+        try:
+            await wscon.send(json.dumps({        
+                            "type": _type,
+                            "body": dicts
+                            }))
+        except websockets.exceptions.WebSocketException as e:
+            print("fail to send channel", e.args)
+            return False
+        return True
+
 async def del_channel(id:str) -> bool:
     if not id in channels:
         print("No such id")
