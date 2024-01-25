@@ -25,6 +25,38 @@ LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
                      ":_ma::_lu::_a::_wave:","まぅあ～",
                      ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
+class reversi_sys:
+    def __init__(self, content:dict, socketid:str) -> None:
+        """reversi system"""
+        self.game_id = content["id"]
+        self.socketid = socketid
+        # Trueで黒、Falseで白
+        self.colour = (content["user1"]["id"] == MY_USER_ID)
+        self.create_banmen(content["map"])
+        send_channel(self.socketid, "")
+
+    async def interface(self, info):
+        """ここにウェブソケットをつなげる"""
+        print(info)
+
+    def create_banmen(self, map):
+        self.banmen = []
+        for i, v in enumerate(map):
+            self.banmen.append([])
+            for r in list(v):
+                if r == "-":
+                    # 空白
+                    self.banmen[i].append(0)
+                elif r == "b":
+                    # 黒
+                    self.banmen[i].append(1 if self.colour else 2)
+                elif r == "w":
+                    # 白
+                    self.banmen[i].append(2 if self.colour else 1)
+                else:
+                    # 壁
+                    self.banmen[i].append(3)
+
 async def main():
     print("main start")
     await connect_check()
@@ -230,9 +262,9 @@ async def onreversi(info):
     print(info)
     if info["type"] == "invited":
         res = await api_post("reversi/match", 30, userid=info["body"]["user"]["id"])
-        print("onreverse put post")
-        print(f"status:{res.status_code}")
-        print(f"content:{res.json()}")
+        id = str(uuid.uuid4())
+        rv = reversi_sys(res.json(), id)
+        await add_channel("reversiGame", rv.interface, id=id, gameId=rv.game_id)
 
 async def api_post(endp:str, wttime:int, **dicts) -> requests.Response:
     url = f"https://{INSTANCE}/api/"+endp
