@@ -74,7 +74,6 @@ async def runner():
     # 接続するチャンネル : (uuid4, 受け取り関数(async))
     # dict(str : tuple(str, coroutinefunc))
     global channels
-    channels = {v:(str(uuid.uuid4()), __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
     channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
     while True:
         try:
