@@ -220,7 +220,7 @@ async def onreversi(info):
 async def api_post(endp:str, wttime:int, **dicts) -> requests.Response:
     url = f"https://{INSTANCE}/api/"+endp
     dicts["i"] = TOKEN
-    return await asyncio.to_thread(requests.post(url, json=dicts, timeout=wttime))
+    return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
 
 async def create_reaction(id,reaction,Instant=False):
     if not Instant:
