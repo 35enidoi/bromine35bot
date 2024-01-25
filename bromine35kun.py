@@ -33,7 +33,6 @@ class reversi_sys:
         # Trueで黒、Falseで白
         self.colour = (content["user1"]["id"] == MY_USER_ID)
         self.create_banmen(content["map"])
-        send_channel(self.socketid, "")
 
     async def interface(self, info):
         """ここにウェブソケットをつなげる"""
@@ -115,7 +114,7 @@ async def runner():
             async with websockets.connect(WS_URL) as ws:
                 wscon = ws
                 for i, v in channels.items():
-                    await ws.send(json.dumps({        
+                    await wscon.send(json.dumps({        
                     "type": "connect",
                     "body": {
                         "channel": v[0],
@@ -124,7 +123,7 @@ async def runner():
                     }))
                 print(channels.keys(),"connect")
                 while True:
-                    data = json.loads(await ws.recv())
+                    data = json.loads(await wscon.recv())
                     if explosion:
                         raise KeyboardInterrupt
                     if data['type'] == 'channel':
@@ -138,6 +137,7 @@ async def runner():
                     else:
                         print("channel以外からのデータが来ました")
                         print(data["type"])
+                        print(data)
 
         except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
             print("error occured")
@@ -159,6 +159,7 @@ async def add_channel(channel:str, func, id=None, **dicts) -> str:
         dicts["id"] = id
     dicts["channel"] = channel
     channels[dicts["id"]] = (channel, func)
+    print(dicts)
     try:
         await wscon.send(json.dumps({        
                         "type": "connect",
@@ -166,6 +167,7 @@ async def add_channel(channel:str, func, id=None, **dicts) -> str:
                         }))
     except websockets.exceptions.WebSocketException as e:
         print("fail to create channel", e.args)
+    print(f"connect success:{channel}  id:{id}")
     return dicts["id"]
 
 async def send_channel(id:str, _type:str, **dicts) -> bool:
@@ -241,6 +243,7 @@ async def onnotify(note):
                     await create_note("bot、爆発します。:explosion:")
                     global explosion
                     explosion = True
+                    return
         if note["body"]["user"]["isBot"]:
             print("mention bot detected")
             print(note["body"]["user"]["name"])
@@ -259,12 +262,14 @@ async def onnotify(note):
             asyncio.create_task(create_reaction(note["body"]["id"],"❤️"))
 
 async def onreversi(info):
-    print(info)
     if info["type"] == "invited":
         res = await api_post("reversi/match", 30, userid=info["body"]["user"]["id"])
         id = str(uuid.uuid4())
         rv = reversi_sys(res.json(), id)
         await add_channel("reversiGame", rv.interface, id=id, gameId=rv.game_id)
+    else:
+        print("reversi anything comming")
+        print(info)
 
 async def api_post(endp:str, wttime:int, **dicts) -> requests.Response:
     url = f"https://{INSTANCE}/api/"+endp
