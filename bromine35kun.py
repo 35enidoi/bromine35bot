@@ -71,33 +71,26 @@ class bromine35:
     async def runner(self):
         __CONST_CHANNEL = ("main", "localTimeline", "reversi")
         __CONST_FUNCS = (self.onnotify, self.onnote, self.onreversi)
-        global wscon
         # データ構造
-        # 接続するチャンネル : (uuid4, 受け取り関数(async))
-        # dict(str : tuple(str, coroutinefunc))
-        global channels
-        channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
+        # uuid4 : (接続するチャンネル, 受け取り関数(async))
+        # dict(uuid4 : tuple(channel, coroutinefunc))
+        self.send_queue = asyncio.Queue()
+        self.channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
+        # このwsdは最初に接続失敗すると未定義になるから保険のため
+        wsd = None
         while True:
             try:
                 asyncio.create_task(self.detect_not_follow())
                 print("connect start")
                 async with websockets.connect(self.WS_URL) as ws:
-                    wscon = ws
-                    for i, v in channels.items():
-                        await wscon.send(json.dumps({        
-                        "type": "connect",
-                        "body": {
-                            "channel": v[0],
-                            "id": i
-                        }
-                        }))
-                    print(channels.keys(),"connect")
+                    wsd = asyncio.create_task(self.ws_send_d(ws))
+                    print(self.channels.keys(),"connect")
                     while True:
-                        data = json.loads(await wscon.recv())
+                        data = json.loads(await ws.recv())
                         if self.explosion:
                             raise KeyboardInterrupt
                         if data['type'] == 'channel':
-                            for i, v in channels.items():
+                            for i, v in self.channels.items():
                                 if data["body"]["id"] == i:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
@@ -121,57 +114,86 @@ class bromine35:
                 print(e, e.args)
                 textworkput(f"fatal Error; {e}")
                 break
+            
+            finally:
+                if type(wsd) == asyncio.Task:
+                    wsd.cancel()
+                    try:
+                        await wsd
+                    except asyncio.CancelledError:
+                        pass
 
-    async def add_channel(self, channel:str, func, id=None, **dicts) -> str:
-        if id is None:
-            dicts["id"] = str(uuid.uuid4)
+    async def ws_send_d(self, ws:websockets.WebSocketClientProtocol):
+        for i, v in self.channels.items():
+            await ws.send(json.dumps({        
+            "type": "connect",
+            "body": {
+                "channel": v[0],
+                "id": i
+            }
+            }))
+        while True:
+            # 型:tuple(type:str, body:dict)
+            getter = await self.send_queue.get()
+            await ws.send(json.dumps({        
+            "type": getter[0],
+            "body": getter[1]
+            }))
+            if TESTMODE:
+                print(f"putted:{getter}")
+    
+    async def ws_send(self, type_:str, channel:str=None, id_:str=None, func_=None, **dicts) -> str:
+        """ウェブソケットへsendして場合によっては記憶したりするもの
+        type_:str
+        channel:str
+        id_:str|None
+        func_:coroutinefunction
+        ```
+        if type_ == "connect":
+            チャンネルを記憶
+            func_が必要
+            idがNoneの場合idを自動生成する
+            idを返す
+            body = {
+                "channel" : channel,
+                "id" : id_,
+                "params" : dicts
+            }
         else:
-            dicts["id"] = id
-        dicts["channel"] = channel
-        channels[dicts["id"]] = (channel, func)
-        print(dicts)
-        try:
-            await wscon.send(json.dumps({        
-                            "type": "connect",
-                            "body": dicts
-                            }))
-        except websockets.exceptions.WebSocketException as e:
-            print("fail to create channel", e.args)
-        print(f"connect success:{channel}  id:{id}")
-        return dicts["id"]
-
-    async def send_channel(self, id:str, _type:str, **dicts) -> bool:
-        if not id in channels:
-            print("No such id")
-            return False
+            Noneを返す
+            if type_ == "disconnect:
+                チャンネルを記憶から削除
+                body = {
+                    "id" : id_
+                }
+            else:
+                body = dicts
+        ```"""
+        if type_ == "connect":
+            if not asyncio.iscoroutinefunction(func_):
+                raise ValueError("func_がコルーチンじゃないです。")
+            if id_ is None:
+                ret = str(uuid.uuid4())
+            else:
+                ret = id_
+            body = {
+                "channel" : channel,
+                "id" : id_,
+                "params" : dicts
+            }
+            self.channels[ret] = (channel, func_)
         else:
-            dicts["id"] = id
-            try:
-                await wscon.send(json.dumps({        
-                                "type": _type,
-                                "body": dicts
-                                }))
-            except websockets.exceptions.WebSocketException as e:
-                print("fail to send channel", e.args)
-                return False
-            return True
-
-    async def del_channel(self, id:str) -> bool:
-        if not id in channels:
-            print("No such id")
-            return False
-        else:
-            try:
-                await wscon.send(json.dumps({        
-                                "type": "disconnect",
-                                "body": {
-                                    "id": id
-                                }
-                                }))
-                del channels[id]
-            except websockets.exceptions.WebSocketException as e:
-                print("fail to delete channel", e.args)
-            return True
+            ret = None
+            if type_ == "disconnect":
+                self.channels.pop(id_)
+                body = {
+                    "id" : id_
+                }
+            else:
+                body = dicts
+        print(body)
+        await self.send_queue.put((type_, body))
+        return ret
 
     async def detect_not_follow(self):
         try:
