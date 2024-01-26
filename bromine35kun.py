@@ -273,9 +273,9 @@ class bromine35:
     async def onreversi(self, info):
         if info["type"] == "invited":
             res = await self.api_post("reversi/match", 30, userid=info["body"]["user"]["id"])
-            id = str(uuid.uuid4())
-            rv = self.reversi_sys(res.json(), id)
-            await self.add_channel("reversiGame", rv.interface, id=id, gameId=rv.game_id)
+            id_ = str(uuid.uuid4())
+            rv = self.reversi_sys(self, res.json(), id_)
+            await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
         else:
             print("reversi anything comming")
             print(info)
@@ -372,17 +372,33 @@ class bromine35:
             return cpu_temp
 
     class reversi_sys:
-        def __init__(self, content:dict, socketid:str) -> None:
+        def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
+            self.br = br
             self.game_id = content["id"]
             self.socketid = socketid
             # Trueで黒、Falseで白
-            self.colour = (content["user1"]["id"] == self.MY_USER_ID)
+            self.colour = (content["user1"]["id"] == self.br.MY_USER_ID)
+            self.llotheo = False
             self.create_banmen(content["map"])
+            if TESTMODE:
+                print("reversi system on ready", f"gameid:{self.game_id}")
 
         async def interface(self, info):
             """ここにウェブソケットをつなげる"""
             print(info)
+            if (type_ := info["type"]) == "canceled":
+                await self.cancel()
+            elif type_ == "updateSettings":
+                body = info["body"]
+                if (key := body["key"]) == "isLlotheo":
+                    self.llotheo = body["value"]
+                elif key == "loopedBoard":
+                    if body["value"]:
+                        print("thonk")
+                        await self.br.ws_send("channel", id=self.socketid, type="message", body={"text":"ループボードは非対応です","type":"warning"})
+                elif key == "map":
+                    self.create_banmen(body["value"])
 
         def create_banmen(self, map):
             self.banmen = []
@@ -401,6 +417,11 @@ class bromine35:
                     else:
                         # 壁
                         self.banmen[i].append(3)
+            for i in self.banmen:
+                print(i)
+        
+        async def cancel(self):
+            await self.br.ws_send("disconnect", id_=str(self.socketid))
 
 def textworkput(text):
     filepath = os.path.abspath(os.path.join(os.path.dirname(__file__),f'./{BOT_LOG_FILE}'))
