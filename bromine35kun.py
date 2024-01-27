@@ -326,7 +326,7 @@ class bromine35:
         dicts["i"] = self.TOKEN
         return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
 
-    async def create_reaction(self, id,reaction,Instant=False):
+    async def create_reaction(self, id, reaction, Instant=False):
         if not Instant:
             await asyncio.sleep(random.randint(3,5))
         try:
@@ -343,7 +343,7 @@ class bromine35:
         except Exception as e:
             print(f"follow fail;{e}")
 
-    async def create_note(self, text,cw=None,direct=None,reply=None):
+    async def create_note(self, text, cw=None, direct=None, reply=None):
         if direct == None:
             notevisible = "public"
         else:
@@ -387,7 +387,6 @@ class bromine35:
 
             # Trueで黒、Falseで白
             self.user1:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
-            print(self.user1)
             self.loopbord:bool = False
             self.llotheo:bool = False
             self.put_everywhere:bool = False
@@ -432,45 +431,57 @@ class bromine35:
                         await self.br.ws_send("channel", id=self.socketid, type="ready", body=True)
             else:
                 if info["type"] == "ended":
+                    if not TESTMODE:
+                        url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
+                        enemyname = info["body"]["game"][f"uesr{2 if self.user1 else 1}"]["name"]
+                        if info["body"]["game"]["winnerId"] == self.br.MY_USER_ID:
+                            txt = "に勝ちました:nullcatchan_nope:"
+                        else:
+                            txt = "に負けました:oyoo:"
+                        await self.br.create_note(url+enemyname+txt)
                     await self.disconnect()
                 elif info["type"] == "started":
                     print("start reversi! gameid:", self.game_id)
+                    self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
+                    self.create_banmen(info["body"]["game"]["map"])
                     if TESTMODE:
                         print("どこでも置ける:", self.put_everywhere)
                         print("ロセオ:", self.llotheo)
                         print("ループボード", self.loopbord)
-                        del info["body"]["game"]["user1"], info["body"]["game"]["user2"]
-                        print(info)
-                    self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
-                    print("色:", self.colour)
-                    self.create_banmen(info["body"]["game"]["map"])
+                        print("色:", self.colour)
+                    else:
+                        url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
+                        enemyname = info["body"]["game"][f"uesr{2 if self.user1 else 1}"]["name"]
+                        txt = "と対戦を開始しました:taisen_yorosiku_onegaisimasu:"
+                        await self.br.create_note(url+enemyname+txt)
                     if self.colour:
-                        print("oh! start turn is me!")
-                        print("think...")
                         pts = self.search_point()
                         if len(pts) != 0:
-                            pt = max(pts, key=lambda x:x[0])
+                            if self.llotheo:
+                                pt = min(pts, key=lambda x:x[0])
+                            else:
+                                pt = max(pts, key=lambda x:x[0])
                             print("this! :",pt)
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                 elif info["type"] == "log":
                     body = info["body"]
-                    print(body)
                     is_this_me = (body["player"]==self.colour)
                     if not is_this_me:
                         self.set_point(body["pos"], rev=True)
-                        print("think...")
                         pts = self.search_point()
-                        print(pts)
                         if len(pts) != 0:
-                            pt = max(pts, key=lambda x:x[0])
-                            print("this! :",pt)
+                            if self.llotheo:
+                                pt = min(pts, key=lambda x:x[0])
+                            else:
+                                pt = max(pts, key=lambda x:x[0])
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                 else:
                     print(info)
 
         def create_banmen(self, map):
+            """盤面作成関数"""
             # 1を自分、2を相手とする
             self.banmen = []
             for i, v in enumerate(map):
@@ -488,8 +499,6 @@ class bromine35:
                     else:
                         # 壁
                         self.banmen[i].append(3)
-            # for i in self.banmen:
-            #     print(i)
         
         def search_point(self) -> list[tuple[int, tuple[int, int]]]:
             """駒を置ける場所を探す関数"""
@@ -561,8 +570,6 @@ class bromine35:
                             break
                 except IndexError:
                     pass
-            for i in self.banmen:
-                print(i)
 
         def postoyx(self, pos, rev:bool=False):
             """pos to yx.
