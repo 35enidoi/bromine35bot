@@ -432,6 +432,7 @@ class bromine35:
                         await self.br.ws_send("channel", id=self.socketid, type="ready", body=self.ok)
             else:
                 if info["type"] == "ended":
+                    print("finish reversi gameid:", self.game_id)
                     if not TESTMODE:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                         enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
