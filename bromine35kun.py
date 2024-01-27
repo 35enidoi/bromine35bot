@@ -425,7 +425,7 @@ class bromine35:
                 elif key == "canPutEverywhere":
                     self.put_everywhere = body["value"]
             elif type_ == "changeReadyStates":
-                if info["body"][f"user{1 if self.user1 else 2}"]:
+                if info["body"][f"user{1 if self.user1 else 2}"] is self.ok:
                     pass
                 else:
                     if info["body"][f"user{2 if self.user1 else 1}"]:
