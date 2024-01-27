@@ -467,7 +467,6 @@ class bromine35:
                                 pt = min(pts, key=lambda x:x[0])
                             else:
                                 pt = max(pts, key=lambda x:x[0])
-                            print("this! :",pt)
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                 elif info["type"] == "log":
