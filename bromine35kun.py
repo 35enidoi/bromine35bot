@@ -222,7 +222,7 @@ class bromine35:
                 pass
             elif any(char in text_ for char in map(str, self.LIST_DETECT_JYOPA)):
                 print(f"jyopa detect noteid;{note['id']}")
-                asyncio.create_task(self.self.create_reaction(note["id"], ":blobcat_frustration:"))
+                asyncio.create_task(self.create_reaction(note["id"], ":blobcat_frustration:"))
         if note.get("renoteId"):
             await self.notes_queue.put(("renote",note["userId"]))
         else:
@@ -276,6 +276,11 @@ class bromine35:
             id_ = str(uuid.uuid4())
             rv = self.reversi_sys(self, res.json(), id_)
             await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
+            # フォームは今のところ未対応みたい
+
+            # # フォーム送信
+            # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
+            # await self.ws_send("channel", id=rv.socketid, type="init-form", body=form)
         else:
             print("reversi anything comming")
             print(info)
@@ -374,13 +379,37 @@ class bromine35:
     class reversi_sys:
         def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
+            # bromine35の保存
             self.br = br
+            # id保存
             self.game_id = content["id"]
             self.socketid = socketid
+            # ゲーム設定
+
             # Trueで黒、Falseで白
-            self.colour = (content["user1"]["id"] == self.br.MY_USER_ID)
-            self.llotheo = False
+            self.colour:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
+            self.loopbord:bool = False
+            self.llotheo:bool = False
+            self.put_everywhere:bool = False
+            self.revstrange:bool = False
+            # formは今のところ未対応みたい
+
+            # # 内部の分岐用のフォーム
+            # # dict[id : tuple[type, label, default, val]]
+            # self._form = {
+            #     "revstrange" : ("switch",
+            #                     "Botが駒を押すときに一番少ないものを選ぶようになります",
+            #                     False,
+            #                     self.revstrange)
+            # }
+            # 盤面作成
             self.create_banmen(content["map"])
+
+            # フォーム
+            form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in self._form.items()]
+            self.br.ws_send("channel", id=self.socketid, type="init-form", body=form)
+
+            # テストモードならリバーシシステムが準備完了なことを言う
             if TESTMODE:
                 print("reversi system on ready", f"gameid:{self.game_id}")
 
@@ -394,13 +423,14 @@ class bromine35:
                 if (key := body["key"]) == "isLlotheo":
                     self.llotheo = body["value"]
                 elif key == "loopedBoard":
-                    if body["value"]:
-                        print("thonk")
-                        await self.br.ws_send("channel", id=self.socketid, type="message", body={"text":"ループボードは非対応です","type":"warning"})
+                    self.loopbord = body["value"]
+                elif key == "loopedBoard":
+                    self.put_everywhere = body["value"]
                 elif key == "map":
                     self.create_banmen(body["value"])
 
         def create_banmen(self, map):
+            # 1を自分、2を相手とする
             self.banmen = []
             for i, v in enumerate(map):
                 self.banmen.append([])
@@ -420,6 +450,84 @@ class bromine35:
             for i in self.banmen:
                 print(i)
         
+        def search_point(self) -> list[tuple[int, tuple[int, int]]]:
+            """駒を置ける場所を探す関数"""
+            #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
+            move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+            points = []
+
+            for y, i in enumerate(self.banmen):
+                for x, r in enumerate(i):
+                    # その場所が空白であるか
+                    if r == 0:
+                        point = 0
+                        # 八方向に探索
+                        for v, s in move:
+                            direction_point = 0
+
+                            # 取得できる量を作る
+                            try:
+                                n = 1
+                                while True:
+                                    if y+v*n<0 or x+s*n<0:
+                                        if not self.loopbord:
+                                            break
+
+                                    if (koma := self.banmen[y+v*n][x+s*n]) == 1:
+                                        point += direction_point
+                                        break
+                                    elif koma == 2:
+                                        direction_point += 1
+                                        n += 1
+                                    else:
+                                        break
+                            except IndexError:
+                                pass
+
+                        # pointが0ではない(一つ以上取れる場合)pointsに入れる
+                        if point != 0:
+                            points.append((point, (y, x)))
+            return points
+
+        def set_point(self, pos:int, rev:bool=False):
+            """駒設置関数"""
+            #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
+            move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+            Y, X = self.postoyx(pos)
+            self.banmen[Y, X] = 2 if rev else 1
+            # 八方向に探索
+            for v, s in move:
+                revlist:list[tuple(int, int)] = []
+
+                # komaが2(相手の駒)だったらrevlistにぶち込む
+                # komaが1だったらrevlistに基づき裏返す
+                # revがTrueだと逆(相手の攻勢)
+                try:
+                    n = 1
+                    while True:
+                        if (y := Y+v*n)<0 or (x := X+s*n)<0:
+                            if not self.loopbord:
+                                break
+
+                        if (koma := self.banmen[y][x]) == 2 if rev else 1:
+                            for y_, x_ in revlist:
+                                self.banmen[y_, x_] = 2 if rev else 1
+                        elif koma == 1 if rev else 2:
+                            revlist.append((y, x))
+                        else:
+                            break
+                except IndexError:
+                    pass
+        
+        def postoyx(self, pos, rev:bool=False):
+            """pos to yx.
+            
+            if rev, yx to pos."""
+            yoko = self.banmen[0]
+            if rev:
+                return yoko*pos[0] + pos[1]
+            return pos//yoko, pos%yoko
+
         async def cancel(self):
             await self.br.ws_send("disconnect", id_=str(self.socketid))
 
