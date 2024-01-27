@@ -384,10 +384,11 @@ class bromine35:
             self.game_id = content["id"]
             self.socketid = socketid
             # ゲーム設定
+            # ループボードの時はめんどいのでokの値をFalseにして承認しない
+            self.ok:bool = True
 
             # Trueで黒、Falseで白
             self.user1:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
-            self.loopbord:bool = False
             self.llotheo:bool = False
             self.put_everywhere:bool = False
             # self.revstrange:bool = False
@@ -420,7 +421,7 @@ class bromine35:
                 if (key := body["key"]) == "isLlotheo":
                     self.llotheo = body["value"]
                 elif key == "loopedBoard":
-                    self.loopbord = body["value"]
+                    self.ok = not body["value"]
                 elif key == "canPutEverywhere":
                     self.put_everywhere = body["value"]
             elif type_ == "changeReadyStates":
@@ -428,7 +429,7 @@ class bromine35:
                     pass
                 else:
                     if info["body"][f"user{2 if self.user1 else 1}"]:
-                        await self.br.ws_send("channel", id=self.socketid, type="ready", body=True)
+                        await self.br.ws_send("channel", id=self.socketid, type="ready", body=self.ok)
             else:
                 if info["type"] == "ended":
                     if not TESTMODE:
@@ -447,7 +448,6 @@ class bromine35:
                     if TESTMODE:
                         print("どこでも置ける:", self.put_everywhere)
                         print("ロセオ:", self.llotheo)
-                        print("ループボード", self.loopbord)
                         print("色:", self.colour)
                     else:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
@@ -477,6 +477,27 @@ class bromine35:
                                 pt = max(pts, key=lambda x:x[0])
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
+                            # 相手が打てないときの処理を忘れていた
+                            pt = self.search_point(True)
+                            if len(pt) == 0:
+                                if self.check_valid_koma() != 0:
+                                    await self.interface({"type":"enemycantput"})
+                                        
+                elif info["type"] == "enemycantput":
+                    # 相手が打てないとき
+                    pts = self.search_point()
+                    if len(pts) != 0:
+                        if self.llotheo:
+                            pt = min(pts, key=lambda x:x[0])
+                        else:
+                            pt = max(pts, key=lambda x:x[0])
+                        self.set_point(pos := self.postoyx(pt[1], rev=True))
+                        await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
+                        # 相手が打てないときの処理を忘れていた
+                        pt = self.search_point(True)
+                        if len(pt) == 0:
+                            if self.check_valid_koma() != 0:
+                                await self.interface({"type":"enemycantput"})
                 else:
                     print(info)
 
@@ -500,7 +521,7 @@ class bromine35:
                         # 壁
                         self.banmen[i].append(3)
         
-        def search_point(self) -> list[tuple[int, tuple[int, int]]]:
+        def search_point(self, rev:bool=False) -> list[tuple[int, tuple[int, int]]]:
             """駒を置ける場所を探す関数"""
             #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
             move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
@@ -520,13 +541,12 @@ class bromine35:
                                 n = 1
                                 while True:
                                     if y+v*n<0 or x+s*n<0:
-                                        if not self.loopbord:
-                                            break
+                                        break
 
-                                    if (koma := self.banmen[y+v*n][x+s*n]) == 1:
+                                    if (koma := self.banmen[y+v*n][x+s*n]) == (1 if not rev else 2):
                                         point += direction_point
                                         break
-                                    elif koma == 2:
+                                    elif koma == (2 if not rev else 1):
                                         direction_point += 1
                                         n += 1
                                     else:
@@ -556,8 +576,7 @@ class bromine35:
                     n = 1
                     while True:
                         if (y := Y+v*n)<0 or (x := X+s*n)<0:
-                            if not self.loopbord:
-                                break
+                            break
 
                         if (koma := self.banmen[y][x]) == (2 if rev else 1):
                             for y_, x_ in revlist:
@@ -570,6 +589,12 @@ class bromine35:
                             break
                 except IndexError:
                     pass
+
+        def check_valid_koma(self) -> int:
+            num = 0
+            for i in self.banmen:
+                num += i.count(0)
+            return num
 
         def postoyx(self, pos, rev:bool=False):
             """pos to yx.
