@@ -191,7 +191,6 @@ class bromine35:
                 }
             else:
                 body = dicts
-        print(body)
         await self.send_queue.put((type_, body))
         return ret
 
@@ -425,10 +424,16 @@ class bromine35:
                     self.llotheo = body["value"]
                 elif key == "loopedBoard":
                     self.loopbord = body["value"]
-                elif key == "loopedBoard":
+                elif key == "canPutEverywhere":
                     self.put_everywhere = body["value"]
                 elif key == "map":
                     self.create_banmen(body["value"])
+            elif type_ == "changeReadyStates":
+                if info["body"][f"user{1 if self.colour else 2}"]:
+                    pass
+                else:
+                    if info["body"][f"user{2 if self.colour else 1}"]:
+                        await self.br.ws_send("channel", id=self.socketid, type="ready", body=True)
 
         def create_banmen(self, map):
             # 1を自分、2を相手とする
@@ -448,8 +453,8 @@ class bromine35:
                     else:
                         # 壁
                         self.banmen[i].append(3)
-            for i in self.banmen:
-                print(i)
+            # for i in self.banmen:
+            #     print(i)
         
         def search_point(self) -> list[tuple[int, tuple[int, int]]]:
             """駒を置ける場所を探す関数"""
