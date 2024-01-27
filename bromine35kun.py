@@ -434,7 +434,7 @@ class bromine35:
                 if info["type"] == "ended":
                     if not TESTMODE:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
-                        enemyname = info["body"]["game"][f"uesr{2 if self.user1 else 1}"]["name"]
+                        enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
                         if info["body"]["game"].get("winnerId"):
                             if info["body"]["game"]["winnerId"] == self.br.MY_USER_ID:
                                 txt = "に勝ちました:nullcatchan_nope:"
@@ -456,7 +456,7 @@ class bromine35:
                         print("色:", self.colour)
                     else:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
-                        enemyname = info["body"]["game"][f"uesr{2 if self.user1 else 1}"]["name"]
+                        enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
                         txt = "と対戦を開始しました:taisen_yorosiku_onegaisimasu:"
                         await self.br.create_note(url+enemyname+txt)
                     if self.colour:
