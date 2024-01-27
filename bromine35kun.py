@@ -482,7 +482,17 @@ class bromine35:
                             if len(pt) == 0:
                                 if self.check_valid_koma() != 0:
                                     await self.interface({"type":"enemycantput"})
-                                        
+                        elif self.put_everywhere:
+                            # どこにも置けるモードの時
+                            canput = []
+                            for y, i in enumerate(self.banmen):
+                                for x, r in enumerate(i):
+                                    if r == 0:
+                                        canput.append((y, x))
+                            if len(canput) != 0:
+                                self.set_point(pos:=self.postoyx(canput[random.randint(0, len(canput)-1)], rev=True))
+                                await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
+
                 elif info["type"] == "enemycantput":
                     # 相手が打てないとき
                     pts = self.search_point()
