@@ -392,6 +392,10 @@ class bromine35:
             self.llotheo:bool = False
             self.put_everywhere:bool = False
             self.revstrange:bool = False
+
+            # 盤面作成
+            self.create_banmen(content["map"])
+
             # formは今のところ未対応みたい
 
             # # 内部の分岐用のフォーム
@@ -402,12 +406,9 @@ class bromine35:
             #                     False,
             #                     self.revstrange)
             # }
-            # 盤面作成
-            self.create_banmen(content["map"])
-
-            # フォーム
-            form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in self._form.items()]
-            self.br.ws_send("channel", id=self.socketid, type="init-form", body=form)
+            # # フォーム
+            # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in self._form.items()]
+            # self.br.ws_send("channel", id=self.socketid, type="init-form", body=form)
 
             # テストモードならリバーシシステムが準備完了なことを言う
             if TESTMODE:
