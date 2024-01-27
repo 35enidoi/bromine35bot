@@ -435,10 +435,15 @@ class bromine35:
                     if not TESTMODE:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                         enemyname = info["body"]["game"][f"uesr{2 if self.user1 else 1}"]["name"]
-                        if info["body"]["game"]["winnerId"] == self.br.MY_USER_ID:
-                            txt = "に勝ちました:nullcatchan_nope:"
+                        if info["body"]["game"].get("winnerId"):
+                            if info["body"]["game"]["winnerId"] == self.br.MY_USER_ID:
+                                txt = "に勝ちました:nullcatchan_nope:"
+                            else:
+                                txt = "に負けました:oyoo:"
+                        elif info["body"]["game"].get("surrenderedUserId"):
+                            txt = "に投了されました:thinknyan:"
                         else:
-                            txt = "に負けました:oyoo:"
+                            txt = "との戦いで引き分けになりました:taisen_arigatou_gozaimasita:"
                         await self.br.create_note(url+enemyname+txt)
                     await self.disconnect()
                 elif info["type"] == "started":
