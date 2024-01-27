@@ -386,14 +386,12 @@ class bromine35:
             # ゲーム設定
 
             # Trueで黒、Falseで白
-            self.colour:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
+            self.user1:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
+            print(self.user1)
             self.loopbord:bool = False
             self.llotheo:bool = False
             self.put_everywhere:bool = False
-            self.revstrange:bool = False
-
-            # 盤面作成
-            self.create_banmen(content["map"])
+            # self.revstrange:bool = False
 
             # formは今のところ未対応みたい
 
@@ -415,9 +413,9 @@ class bromine35:
 
         async def interface(self, info):
             """ここにウェブソケットをつなげる"""
-            print(info)
+            # print(info)
             if (type_ := info["type"]) == "canceled":
-                await self.cancel()
+                await self.disconnect()
             elif type_ == "updateSettings":
                 body = info["body"]
                 if (key := body["key"]) == "isLlotheo":
@@ -426,14 +424,51 @@ class bromine35:
                     self.loopbord = body["value"]
                 elif key == "canPutEverywhere":
                     self.put_everywhere = body["value"]
-                elif key == "map":
-                    self.create_banmen(body["value"])
             elif type_ == "changeReadyStates":
-                if info["body"][f"user{1 if self.colour else 2}"]:
+                if info["body"][f"user{1 if self.user1 else 2}"]:
                     pass
                 else:
-                    if info["body"][f"user{2 if self.colour else 1}"]:
+                    if info["body"][f"user{2 if self.user1 else 1}"]:
                         await self.br.ws_send("channel", id=self.socketid, type="ready", body=True)
+            else:
+                if info["type"] == "ended":
+                    await self.disconnect()
+                elif info["type"] == "started":
+                    print("start reversi! gameid:", self.game_id)
+                    if TESTMODE:
+                        print("どこでも置ける:", self.put_everywhere)
+                        print("ロセオ:", self.llotheo)
+                        print("ループボード", self.loopbord)
+                        del info["body"]["game"]["user1"], info["body"]["game"]["user2"]
+                        print(info)
+                    self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
+                    print("色:", self.colour)
+                    self.create_banmen(info["body"]["game"]["map"])
+                    if self.colour:
+                        print("oh! start turn is me!")
+                        print("think...")
+                        pts = self.search_point()
+                        if len(pts) != 0:
+                            pt = max(pts, key=lambda x:x[0])
+                            print("this! :",pt)
+                            self.set_point(pos := self.postoyx(pt[1], rev=True))
+                            await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
+                elif info["type"] == "log":
+                    body = info["body"]
+                    print(body)
+                    is_this_me = (body["player"]==self.colour)
+                    if not is_this_me:
+                        self.set_point(body["pos"], rev=True)
+                        print("think...")
+                        pts = self.search_point()
+                        print(pts)
+                        if len(pts) != 0:
+                            pt = max(pts, key=lambda x:x[0])
+                            print("this! :",pt)
+                            self.set_point(pos := self.postoyx(pt[1], rev=True))
+                            await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
+                else:
+                    print(info)
 
         def create_banmen(self, map):
             # 1を自分、2を相手とする
@@ -500,7 +535,7 @@ class bromine35:
             #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
             move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
             Y, X = self.postoyx(pos)
-            self.banmen[Y, X] = 2 if rev else 1
+            self.banmen[Y][X] = (2 if rev else 1)
             # 八方向に探索
             for v, s in move:
                 revlist:list[tuple(int, int)] = []
@@ -515,26 +550,30 @@ class bromine35:
                             if not self.loopbord:
                                 break
 
-                        if (koma := self.banmen[y][x]) == 2 if rev else 1:
+                        if (koma := self.banmen[y][x]) == (2 if rev else 1):
                             for y_, x_ in revlist:
-                                self.banmen[y_, x_] = 2 if rev else 1
-                        elif koma == 1 if rev else 2:
+                                self.banmen[y_][x_] = (2 if rev else 1)
+                            break
+                        elif koma == (1 if rev else 2):
                             revlist.append((y, x))
+                            n += 1
                         else:
                             break
                 except IndexError:
                     pass
-        
+            for i in self.banmen:
+                print(i)
+
         def postoyx(self, pos, rev:bool=False):
             """pos to yx.
             
             if rev, yx to pos."""
-            yoko = self.banmen[0]
+            yoko = len(self.banmen[0])
             if rev:
                 return yoko*pos[0] + pos[1]
             return pos//yoko, pos%yoko
 
-        async def cancel(self):
+        async def disconnect(self):
             await self.br.ws_send("disconnect", id_=str(self.socketid))
 
 def textworkput(text):
