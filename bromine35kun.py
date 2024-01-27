@@ -10,7 +10,7 @@ import random
 import os
 
 BOT_LOG_FILE = "botlog.txt"
-TESTMODE = True
+TESTMODE = False
 
 class bromine35:
     def __init__(self) -> None:
