@@ -72,10 +72,11 @@ class bromine35:
         __CONST_CHANNEL = ("main", "localTimeline", "reversi")
         __CONST_FUNCS = (self.onnotify, self.onnote, self.onreversi)
         # データ構造
-        # uuid4 : (接続するチャンネル, 受け取り関数(async))
-        # dict(uuid4 : tuple(channel, coroutinefunc))
+        # uuid4 : (接続するチャンネル, 受け取り関数(async), params)
+        # dict(uuid4 : tuple(channel, coroutinefunc, params))
         self.send_queue = asyncio.Queue()
-        self.channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i]) for i, v in enumerate(__CONST_CHANNEL)}
+        self.channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i], {}) for i, v in enumerate(__CONST_CHANNEL)}
+        self.on_comeback = {}
         # このwsdは最初に接続失敗すると未定義になるから保険のため
         wsd = None
         while True:
@@ -84,6 +85,8 @@ class bromine35:
                 print("connect start")
                 async with websockets.connect(self.WS_URL) as ws:
                     wsd = asyncio.create_task(self.ws_send_d(ws))
+                    for i in self.on_comeback.values():
+                        await i()
                     print(self.channels.keys(),"connect")
                     while True:
                         data = json.loads(await ws.recv())
@@ -123,13 +126,25 @@ class bromine35:
                     except asyncio.CancelledError:
                         pass
 
+    def on_comebacker(self, id:str, func=None, rev:bool=False):
+        """comebackを作る
+        
+        delの時はfuncいらない"""
+        if rev:
+            del self.on_comeback[id]
+        else:
+            if not asyncio.iscoroutinefunction(func):
+                raise ValueError("与える関数はコルーチンでなければなりません")
+            self.on_comeback[id] = func
+
     async def ws_send_d(self, ws:websockets.WebSocketClientProtocol):
         for i, v in self.channels.items():
             await ws.send(json.dumps({        
             "type": "connect",
             "body": {
                 "channel": v[0],
-                "id": i
+                "id": i,
+                "params": v[2]
             }
             }))
         while True:
@@ -141,7 +156,7 @@ class bromine35:
             }))
             if TESTMODE:
                 print(f"putted:{getter}")
-    
+
     async def ws_send(self, type_:str, channel:str=None, id_:str=None, func_=None, **dicts) -> str:
         """ウェブソケットへsendして場合によっては記憶したりするもの
         type_:str
@@ -181,7 +196,7 @@ class bromine35:
                 "id" : id_,
                 "params" : dicts
             }
-            self.channels[ret] = (channel, func_)
+            self.channels[ret] = (channel, func_, dicts)
         else:
             ret = None
             if type_ == "disconnect":
@@ -383,6 +398,9 @@ class bromine35:
             # id保存
             self.game_id = content["id"]
             self.socketid = socketid
+            # comebackの作成
+            self.br.on_comebacker(self.socketid, self.comeback)
+
             # ゲーム設定
             # ループボードの時はめんどいのでokの値をFalseにして承認しない
             self.ok:bool = True
@@ -410,6 +428,23 @@ class bromine35:
             # テストモードならリバーシシステムが準備完了なことを言う
             if TESTMODE:
                 print("reversi system on ready", f"gameid:{self.game_id}")
+
+        async def comeback(self):
+            res = await self.br.api_post("reversi/show-game", 30, gameId=self.game_id)
+            if res.status_code == 200:
+                ds = res.json()
+                if ds["isEnded"]:
+                    await self.disconnect()
+                else:
+                    if ds["isStarted"]:
+                        self.create_banmen(ds["map"])
+                        for i in ds["logs"][:-1]:
+                            self.set_point(i[3], rev=(bool(i[1]) != self.colour))
+                        if bool((last := ds["logs"][-1])[1]) != self.colour:
+                            # 処理めんどいのでinterfaceに流す
+                            await self.interface({"type":"log", "body":{"player":(not self.colour), "pos":last[3]}})
+                        else:
+                            self.set_point(last[3])
 
         async def interface(self, info):
             """ここにウェブソケットをつなげる"""
@@ -621,6 +656,7 @@ class bromine35:
             return pos//yoko, pos%yoko
 
         async def disconnect(self):
+            self.br.on_comebacker(self.socketid, rev=True)
             await self.br.ws_send("disconnect", id_=str(self.socketid))
 
 def textworkput(text):
