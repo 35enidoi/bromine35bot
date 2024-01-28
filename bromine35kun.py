@@ -262,11 +262,19 @@ class bromine35:
                         return
                     elif "explosion" in note["body"]["text"]:
                         print("explosion!!!")
-                        await asyncio.create_task(self.create_reaction(note["body"]["id"],":explosion:",Instant=True))
+                        await self.create_reaction(note["body"]["id"],":explosion:",Instant=True)
                         if not TESTMODE:
                             await self.create_note("bot、爆発します。:explosion:")
                         self.explosion = True
                         return
+                    elif "invite" in note["body"]["text"]:
+                        print("reversi invite comming")
+                        print(note["body"]["text"].split(" ")[-1])
+                        res = await self.api_post("reversi/match", 30, userId=str(note["body"]["text"].split("\n")[-1]))
+                        print(res.status_code)
+                        asyncio.create_task(self.create_reaction(note["body"]["id"],"🆗",Instant=True))
+                        return
+
             if note["body"]["user"]["isBot"]:
                 print("mention bot detected")
                 print(note["body"]["user"]["name"])
@@ -286,10 +294,12 @@ class bromine35:
 
     async def onreversi(self, info):
         if info["type"] == "invited":
+            if TESTMODE:
+                print("invite!")
             if not (userid := info["body"]["user"]["id"]) in self.reversi_sys.playing_user_list:
                 # プレイ中のuseridのリストにぶち込む
                 self.reversi_sys.playing_user_list.append(userid)
-                res = await self.api_post("reversi/match", 30, userid=userid)
+                res = await self.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid.uuid4())
                 rv = self.reversi_sys(self, res.json(), id_)
                 await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
@@ -298,6 +308,16 @@ class bromine35:
                 # # フォーム送信
                 # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
                 # await self.ws_send("channel", id=rv.socketid, type="init-form", body=form)
+        elif info["type"] == "matched":
+            game = info["body"]["game"]
+            if TESTMODE:
+                print("matched!")
+            if not (userid := game[f"user{1 if game['user1'] == self.MY_USER_ID else 2}"]["id"]) in self.reversi_sys.playing_user_list:
+                # プレイ中のuseridのリストにぶち込む
+                self.reversi_sys.playing_user_list.append(userid)
+                id_ = str(uuid.uuid4())
+                rv = self.reversi_sys(self, game, id_)
+                await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
         else:
             print("reversi anything comming")
             print(info)
