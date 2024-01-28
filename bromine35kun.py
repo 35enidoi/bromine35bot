@@ -543,6 +543,9 @@ class bromine35:
                                 await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                 elif type_ == "enemycantput":
                     # 相手が打てないとき
+                    # 処理が速すぎてたまにバグるのでちょっと待つ
+                    await asyncio.sleep(1)
+
                     pts = self.search_point()
                     if len(pts) != 0:
                         if self.llotheo:
