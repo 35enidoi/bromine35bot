@@ -286,15 +286,18 @@ class bromine35:
 
     async def onreversi(self, info):
         if info["type"] == "invited":
-            res = await self.api_post("reversi/match", 30, userid=info["body"]["user"]["id"])
-            id_ = str(uuid.uuid4())
-            rv = self.reversi_sys(self, res.json(), id_)
-            await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
-            # フォームは今のところ未対応みたい
+            if not (userid := info["body"]["user"]["id"]) in self.reversi_sys.playing_user_list:
+                # プレイ中のuseridのリストにぶち込む
+                self.reversi_sys.playing_user_list.append(userid)
+                res = await self.api_post("reversi/match", 30, userid=userid)
+                id_ = str(uuid.uuid4())
+                rv = self.reversi_sys(self, res.json(), id_)
+                await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
+                # フォームは今のところ未対応みたい
 
-            # # フォーム送信
-            # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
-            # await self.ws_send("channel", id=rv.socketid, type="init-form", body=form)
+                # # フォーム送信
+                # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
+                # await self.ws_send("channel", id=rv.socketid, type="init-form", body=form)
         else:
             print("reversi anything comming")
             print(info)
@@ -391,6 +394,10 @@ class bromine35:
             return cpu_temp
 
     class reversi_sys:
+
+        # ゲームのダブりを防ぐためのリスト
+        playing_user_list = []
+
         def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
             # bromine35の保存
@@ -468,6 +475,9 @@ class bromine35:
             else:
                 if info["type"] == "ended":
                     print("finish reversi gameid:", self.game_id)
+                    # プレイ中のプレイヤーのリストからuseridを削除
+                    self.playing_user_list.remove(info["body"]["game"][f"user{2 if self.user1 else 1}"]["id"])
+                    await self.disconnect()
                     if not TESTMODE:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                         enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
@@ -481,7 +491,6 @@ class bromine35:
                         else:
                             txt = "との戦いで引き分けになりました:taisen_arigatou_gozaimasita:"
                         await self.br.create_note(url+enemyname+txt)
-                    await self.disconnect()
                 elif info["type"] == "started":
                     print("start reversi! gameid:", self.game_id)
                     self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
@@ -532,7 +541,6 @@ class bromine35:
                             if len(canput) != 0:
                                 self.set_point(pos:=self.postoyx(canput[random.randint(0, len(canput)-1)], rev=True))
                                 await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
-
                 elif info["type"] == "enemycantput":
                     # 相手が打てないとき
                     pts = self.search_point()
