@@ -510,7 +510,7 @@ class bromine35:
                             txt = "に投了されました:thinknyan:"
                         else:
                             txt = "との戦いで引き分けになりました:taisen_arigatou_gozaimasita:"
-                        await self.br.create_note(url+enemyname+txt)
+                        # await self.br.create_note(url+enemyname+txt)
                 elif type_ == "started":
                     print("start reversi! gameid:", self.game_id)
                     self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
@@ -523,7 +523,7 @@ class bromine35:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                         enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
                         txt = "と対戦を開始しました:taisen_yorosiku_onegaisimasu:"
-                        await self.br.create_note(url+enemyname+txt)
+                        # await self.br.create_note(url+enemyname+txt)
                     if self.colour:
                         pts = self.search_point()
                         if len(pts) != 0:
