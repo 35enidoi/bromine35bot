@@ -528,9 +528,10 @@ class bromine35:
                         pts = self.search_point()
                         if len(pts) != 0:
                             if self.llotheo:
-                                pt = min(pts, key=lambda x:x[0])
+                                mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
                             else:
-                                pt = max(pts, key=lambda x:x[0])
+                                mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                            pt = mpts[random.randint(0, len(mpts)-1)]
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                 elif type_ == "log":
@@ -541,9 +542,10 @@ class bromine35:
                         pts = self.search_point()
                         if len(pts) != 0:
                             if self.llotheo:
-                                pt = min(pts, key=lambda x:x[0])
+                                mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
                             else:
-                                pt = max(pts, key=lambda x:x[0])
+                                mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                            pt = mpts[random.randint(0, len(mpts)-1)]
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                             # 相手が打てないときの処理を忘れていた
@@ -569,9 +571,10 @@ class bromine35:
                     pts = self.search_point()
                     if len(pts) != 0:
                         if self.llotheo:
-                            pt = min(pts, key=lambda x:x[0])
+                            mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
                         else:
-                            pt = max(pts, key=lambda x:x[0])
+                            mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                        pt = mpts[random.randint(0, len(mpts)-1)]
                         self.set_point(pos := self.postoyx(pt[1], rev=True))
                         await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                         # 相手が打てないときの処理を忘れていた
