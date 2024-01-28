@@ -473,7 +473,7 @@ class bromine35:
                     if info["body"][f"user{2 if self.user1 else 1}"]:
                         await self.br.ws_send("channel", id=self.socketid, type="ready", body=self.ok)
             else:
-                if info["type"] == "ended":
+                if type_ == "ended":
                     print("finish reversi gameid:", self.game_id)
                     # プレイ中のプレイヤーのリストからuseridを削除
                     self.playing_user_list.remove(info["body"]["game"][f"user{2 if self.user1 else 1}"]["id"])
@@ -491,7 +491,7 @@ class bromine35:
                         else:
                             txt = "との戦いで引き分けになりました:taisen_arigatou_gozaimasita:"
                         await self.br.create_note(url+enemyname+txt)
-                elif info["type"] == "started":
+                elif type_ == "started":
                     print("start reversi! gameid:", self.game_id)
                     self.colour = (bool(info["body"]["game"]["black"]-1) is not self.user1)
                     self.create_banmen(info["body"]["game"]["map"])
@@ -513,7 +513,7 @@ class bromine35:
                                 pt = max(pts, key=lambda x:x[0])
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
-                elif info["type"] == "log":
+                elif type_ == "log":
                     body = info["body"]
                     is_this_me = (body["player"]==self.colour)
                     if not is_this_me:
@@ -541,7 +541,7 @@ class bromine35:
                             if len(canput) != 0:
                                 self.set_point(pos:=self.postoyx(canput[random.randint(0, len(canput)-1)], rev=True))
                                 await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
-                elif info["type"] == "enemycantput":
+                elif type_ == "enemycantput":
                     # 相手が打てないとき
                     pts = self.search_point()
                     if len(pts) != 0:
