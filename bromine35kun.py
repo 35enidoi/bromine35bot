@@ -297,6 +297,8 @@ class bromine35:
             if TESTMODE:
                 print("invite!")
             if not (userid := info["body"]["user"]["id"]) in self.reversi_sys.playing_user_list:
+                # プレイ中のuseridのリストにぶち込む
+                self.reversi_sys.playing_user_list.append(userid)
                 res = await self.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid.uuid4())
                 rv = self.reversi_sys(self, res.json(), id_)
@@ -310,7 +312,9 @@ class bromine35:
             game = info["body"]["game"]
             if TESTMODE:
                 print("matched!")
-            if not game[f"user{1 if game['user1Id'] == self.MY_USER_ID else 2}"]["id"] in self.reversi_sys.playing_user_list:
+            if not (userid := game[f"user{1 if game['user1Id'] == self.MY_USER_ID else 2}"]["id"]) in self.reversi_sys.playing_user_list:
+                # プレイ中のuseridのリストにぶち込む
+                self.reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid.uuid4())
                 rv = self.reversi_sys(self, game, id_)
                 await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
@@ -431,9 +435,6 @@ class bromine35:
             # user1であるかどうか
             self.user1:bool = content["user1Id"] == self.br.MY_USER_ID
             self.enemyid = content[f"user{2 if self.user1 else 1}Id"]
-
-            # プレイ中のuseridのリストにぶち込む
-            self.playing_user_list.append(self.enemyid)
 
             self.llotheo:bool = False
             self.put_everywhere:bool = False
