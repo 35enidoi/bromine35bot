@@ -422,7 +422,7 @@ class bromine35:
         def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
             # reversi version
-            self.RV = 1.0
+            self.RV = 1.1
             # bromine35の保存
             self.br = br
             # id保存
