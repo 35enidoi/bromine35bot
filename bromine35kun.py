@@ -10,11 +10,11 @@ import random
 import os
 
 BOT_LOG_FILE = "botlog.txt"
-TESTMODE = False
+TESTMODE = True
 
 class bromine35:
     def __init__(self) -> None:
-        self.V = 1.0
+        self.V = 1.1
         self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
         self.INSTANCE = "misskey.io"
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
@@ -422,7 +422,7 @@ class bromine35:
         def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
             # reversi version
-            self.RV = 1.1
+            self.RV = 2.0
             # bromine35の保存
             self.br = br
             # id保存
@@ -542,13 +542,22 @@ class bromine35:
                     is_this_me = (body["player"]==self.colour)
                     if not is_this_me:
                         self.set_point(body["pos"], rev=True)
-                        pts = self.search_point()
+                        if self.RV < 2:
+                            # V1
+                            pts = self.search_point()
+                        elif self.RV < 3:
+                            # V2
+                            pts = self.search_point_v2()
+                        elif self.RV < 4:
+                            ... # V3
+                        print(pts)
                         if len(pts) != 0:
                             if self.llotheo:
                                 mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
                             else:
                                 mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
                             pt = mpts[random.randint(0, len(mpts)-1)]
+                            print(pt)
                             self.set_point(pos := self.postoyx(pt[1], rev=True))
                             await self.br.ws_send("channel", id=self.socketid, type="putStone", body={"pos":pos})
                             # 相手が打てないときの処理を忘れていた
@@ -571,7 +580,14 @@ class bromine35:
                     # 処理が速すぎてたまにバグるのでちょっと待つ
                     await asyncio.sleep(1)
 
-                    pts = self.search_point()
+                    if self.RV < 2:
+                        # V1
+                        pts = self.search_point()
+                    elif self.RV < 3:
+                        # V2
+                        pts = self.search_point_v2()
+                    elif self.RV < 4:
+                        ... # V3
                     if len(pts) != 0:
                         if self.llotheo:
                             mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
@@ -607,7 +623,45 @@ class bromine35:
                     else:
                         # 壁
                         self.banmen[i].append(3)
-        
+
+        def search_point_v2(self) -> list[tuple[int, tuple[int, int]]]:
+            """駒探す関数v2 一手読む"""
+            # 最初の盤面保存
+            fbeforebanmen = [[i for i in r] for r in self.banmen]
+            points = []
+            for first, yx in self.search_point():
+                # まずは置く
+                self.set_point(self.postoyx(yx, rev=True))
+                # 置いた場所を保存
+                tbeforebanmen = [[i for i in r] for r in self.banmen]
+                if len(enemycanput:= self.search_point(True)) != 0:
+                    # 敵が置ける場所がある場合
+                    epts = sum(map(lambda x:x[0], enemycanput))/len(enemycanput)
+                else:
+                    # 敵がどこにも置けない(Zero divisionになるので回避)
+                    epts = 0
+                # 自分が置いた時のポイントのリスト
+                cpts = []
+                for _, yx2 in enemycanput:
+                    # 敵の攻撃を置く
+                    self.set_point(self.postoyx(yx2, True), True)
+                    if len(mecanput := self.search_point()):
+                        # 一手後における場所があるとき
+                        cpts.append(sum(map(lambda x:x[0], mecanput))/len(mecanput))
+                    else:
+                        cpts.append(0)
+                    # 盤面を一個戻す
+                    self.banmen = [[i for i in r] for r in tbeforebanmen]
+                if len(cpts) != 0:
+                    # 一手以上置ける場合
+                    points.append((first+epts+(sum(cpts)/len(cpts)), yx))
+                else:
+                    # 一手も置けない場合(Zero division対策)
+                    points.append((first+epts, yx))
+                # 盤面を初期化
+                self.banmen = [[i for i in r] for r in fbeforebanmen]
+            return points
+
         def search_point(self, rev:bool=False) -> list[tuple[int, tuple[int, int]]]:
             """駒を置ける場所を探す関数"""
             points = []
