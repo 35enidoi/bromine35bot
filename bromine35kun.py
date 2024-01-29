@@ -716,6 +716,43 @@ class bromine35:
             
             return canrev
 
+        def check_side(self, yx:tuple[int, int]) -> int:
+            """2で角、1で辺、0でなんもなし"""
+            #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
+            sides = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+            iswall:list[bool] = []
+            for i in sides:
+                try:
+                    if yx[0]+i[0]<0 or yx[1]+i[1]<0:
+                        iswall.append(True)
+                    elif self.banmen[yx[0]+i[0]][yx[1]+i[1]] == 3:
+                        iswall.append(True)
+                    else:
+                        iswall.append(False)
+                except IndexError:
+                    iswall.append(True)
+            # 縦　斜め右　横　斜め左
+            checkandlist = [(iswall[i] and iswall[i+4]) for i in range(4)]
+            rcheckandlist = [(not iswall[i] and not iswall[i+4]) for i in range(4)]
+            checkislist = [(iswall[i] is iswall[i+4]) for i in range(4)]
+            if checkandlist[1]:
+                # 斜め右でTrueで一致したとき、他の部分がそれぞれ別なら角？
+                if (not checkislist[0]) and (not checkislist[2]) and (not checkislist[3]):
+                    return 2
+            if checkandlist[3]:
+                # 上と同様、違いは斜め右か斜め左か。
+                if all((not checkislist[i]) for i in range(3)):
+                    return 2
+            if rcheckandlist[0]:
+                # 縦でFalseで一致したとき、他の部分がそれぞれ別なら辺？
+                if all((not checkislist[i]) for i in range(1, 4)):
+                    return 1 
+            if rcheckandlist[2]:
+                # 上と同様、違いは縦か横か
+                if (not checkislist[0]) and (not checkislist[1]) and (not checkislist[3]):
+                    return 1
+            return 0
+
         def check_valid_koma(self) -> int:
             num = 0
             for i in self.banmen:
