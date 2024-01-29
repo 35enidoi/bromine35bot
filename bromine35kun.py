@@ -632,11 +632,25 @@ class bromine35:
             for first, yx in self.search_point():
                 # まずは置く
                 self.set_point(self.postoyx(yx, rev=True))
+                # 辺、あるいは角にあるか調べる
+                if (fs := self.check_side(yx)) == 2:
+                    # 角にある
+                    first += 10000
+                elif fs == 1:
+                    # 辺にある
+                    first += 30
                 # 置いた場所を保存
                 tbeforebanmen = [[i for i in r] for r in self.banmen]
-                if len(enemycanput:= self.search_point(True)) != 0:
+                if len(enemycanput := self.search_point(True)) != 0:
                     # 敵が置ける場所がある場合
                     epts = sum(map(lambda x:x[0], enemycanput))/len(enemycanput)
+                    # 辺、あるいは角に置けるか調べる
+                    if any((self.check_side(i[1]) == 2) for i in enemycanput):
+                        # 角に置けてしまうとき
+                        epts -= 2000
+                    elif any((self.check_side(i[1]) == 1) for i in enemycanput):
+                        # 辺に置けてしまうとき
+                        epts -= 50
                 else:
                     # 敵がどこにも置けない(Zero divisionになるので回避)
                     if len(self.search_point()) == 0:
@@ -651,7 +665,14 @@ class bromine35:
                     self.set_point(self.postoyx(yx2, True), True)
                     if len(mecanput := self.search_point()):
                         # 一手後における場所があるとき
-                        cpts.append(sum(map(lambda x:x[0], mecanput))/len(mecanput))
+                        cs = (sum(map(lambda x:x[0], mecanput))/len(mecanput))
+                        if any(self.check_side(i[1]) == 2 for i in mecanput):
+                            # 角における
+                            cs += 1000
+                        elif any(self.check_side(i[1]) == 1 for i in mecanput):
+                            # 辺における
+                            cs += 50
+                        cpts.append(cs)
                     else:
                         cpts.append(0)
                     # 盤面を一個戻す
