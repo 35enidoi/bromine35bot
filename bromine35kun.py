@@ -313,7 +313,7 @@ class bromine35:
             game = info["body"]["game"]
             if TESTMODE:
                 print("matched!")
-            if not (userid := game[f"user{1 if game['user1Id'] == self.MY_USER_ID else 2}"]["id"]) in self.reversi_sys.playing_user_list:
+            if not (userid := game[f"user{2 if game['user1Id'] == self.MY_USER_ID else 1}"]["id"]) in self.reversi_sys.playing_user_list:
                 # プレイ中のuseridのリストにぶち込む
                 self.reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid.uuid4())
