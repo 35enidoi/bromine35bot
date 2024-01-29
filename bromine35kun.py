@@ -616,8 +616,6 @@ class bromine35:
                 for x, r in enumerate(i):
                     # その場所が空白であるか
                     if r == 0:
-                        self.point_search(y, x, rev)
-
                         # pointが0ではない(一つ以上取れる場合)pointsに入れる
                         if (point := len(self.point_search(y, x, rev))) != 0:
                             points.append((point, (y, x)))
