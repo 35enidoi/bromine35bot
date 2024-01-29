@@ -639,6 +639,10 @@ class bromine35:
                     epts = sum(map(lambda x:x[0], enemycanput))/len(enemycanput)
                 else:
                     # 敵がどこにも置けない(Zero divisionになるので回避)
+                    if len(self.search_point()) == 0:
+                        # 自分の番が回ってこない=終了なのでここに置けば勝てる
+                        points.append((2147483647, yx))
+                        break
                     epts = 0
                 # 自分が置いた時のポイントのリスト
                 cpts = []
