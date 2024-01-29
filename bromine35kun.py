@@ -14,6 +14,7 @@ TESTMODE = False
 
 class bromine35:
     def __init__(self) -> None:
+        self.V = 1.0
         self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
         self.INSTANCE = "misskey.io"
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
@@ -420,6 +421,8 @@ class bromine35:
 
         def __init__(self, br, content:dict, socketid:str) -> None:
             """reversi system"""
+            # reversi version
+            self.RV = 1.0
             # bromine35の保存
             self.br = br
             # id保存
