@@ -297,8 +297,6 @@ class bromine35:
             if TESTMODE:
                 print("invite!")
             if not (userid := info["body"]["user"]["id"]) in self.reversi_sys.playing_user_list:
-                # プレイ中のuseridのリストにぶち込む
-                self.reversi_sys.playing_user_list.append(userid)
                 res = await self.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid.uuid4())
                 rv = self.reversi_sys(self, res.json(), id_)
@@ -312,9 +310,7 @@ class bromine35:
             game = info["body"]["game"]
             if TESTMODE:
                 print("matched!")
-            if not (userid := game[f"user{1 if game['user1'] == self.MY_USER_ID else 2}"]["id"]) in self.reversi_sys.playing_user_list:
-                # プレイ中のuseridのリストにぶち込む
-                self.reversi_sys.playing_user_list.append(userid)
+            if not game[f"user{1 if game['user1Id'] == self.MY_USER_ID else 2}"]["id"] in self.reversi_sys.playing_user_list:
                 id_ = str(uuid.uuid4())
                 rv = self.reversi_sys(self, game, id_)
                 await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
@@ -432,8 +428,13 @@ class bromine35:
             # ループボードの時はめんどいのでokの値をFalseにして承認しない
             self.ok:bool = True
 
-            # Trueで黒、Falseで白
-            self.user1:bool = (content["user1"]["id"] == self.br.MY_USER_ID)
+            # user1であるかどうか
+            self.user1:bool = content["user1Id"] == self.br.MY_USER_ID
+            self.enemyid = content[f"user{2 if self.user1 else 1}Id"]
+
+            # プレイ中のuseridのリストにぶち込む
+            self.playing_user_list.append(self.enemyid)
+
             self.llotheo:bool = False
             self.put_everywhere:bool = False
             # self.revstrange:bool = False
@@ -495,8 +496,6 @@ class bromine35:
             else:
                 if type_ == "ended":
                     print("finish reversi gameid:", self.game_id)
-                    # プレイ中のプレイヤーのリストからuseridを削除
-                    self.playing_user_list.remove(info["body"]["game"][f"user{2 if self.user1 else 1}"]["id"])
                     await self.disconnect()
                     if not TESTMODE:
                         url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
@@ -690,6 +689,9 @@ class bromine35:
             return pos//yoko, pos%yoko
 
         async def disconnect(self):
+            # プレイ中のプレイヤーのリストからuseridを削除
+            self.playing_user_list.remove(self.enemyid)
+
             self.br.on_comebacker(self.socketid, rev=True)
             await self.br.ws_send("disconnect", id_=str(self.socketid))
 
