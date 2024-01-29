@@ -10,7 +10,7 @@ import random
 import os
 
 BOT_LOG_FILE = "botlog.txt"
-TESTMODE = False
+TESTMODE = True
 
 class bromine35:
     def __init__(self) -> None:
@@ -610,51 +610,33 @@ class bromine35:
         
         def search_point(self, rev:bool=False) -> list[tuple[int, tuple[int, int]]]:
             """駒を置ける場所を探す関数"""
-            #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
-            move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
             points = []
 
             for y, i in enumerate(self.banmen):
                 for x, r in enumerate(i):
                     # その場所が空白であるか
                     if r == 0:
-                        point = 0
-                        # 八方向に探索
-                        for v, s in move:
-                            direction_point = 0
-
-                            # 取得できる量を作る
-                            try:
-                                n = 1
-                                while True:
-                                    if y+v*n<0 or x+s*n<0:
-                                        break
-
-                                    if (koma := self.banmen[y+v*n][x+s*n]) == (1 if not rev else 2):
-                                        point += direction_point
-                                        break
-                                    elif koma == (2 if not rev else 1):
-                                        direction_point += 1
-                                        n += 1
-                                    else:
-                                        break
-                            except IndexError:
-                                pass
+                        self.point_search(y, x, rev)
 
                         # pointが0ではない(一つ以上取れる場合)pointsに入れる
-                        if point != 0:
+                        if (point := len(self.point_search(y, x, rev))) != 0:
                             points.append((point, (y, x)))
             return points
 
         def set_point(self, pos:int, rev:bool=False):
             """駒設置関数"""
-            #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
-            move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
             Y, X = self.postoyx(pos)
             self.banmen[Y][X] = (2 if rev else 1)
-            # 八方向に探索
+            for y, x in self.point_search(Y, X, rev):
+                self.banmen[y][x] = (2 if rev else 1)
+        
+        def point_search(self, y:int, x:int, rev:bool=False) -> tuple[tuple[int, int]]:
+            #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
+            move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+            # 裏返せる場所のリスト
+            canrev:list[tuple[int, int]] = []
             for v, s in move:
-                revlist:list[tuple(int, int)] = []
+                revlist:list[tuple[int, int]] = []
 
                 # komaが2(相手の駒)だったらrevlistにぶち込む
                 # komaが1だったらrevlistに基づき裏返す
@@ -662,20 +644,21 @@ class bromine35:
                 try:
                     n = 1
                     while True:
-                        if (y := Y+v*n)<0 or (x := X+s*n)<0:
+                        if (Y := y+v*n)<0 or (X := x+s*n)<0:
                             break
 
-                        if (koma := self.banmen[y][x]) == (2 if rev else 1):
-                            for y_, x_ in revlist:
-                                self.banmen[y_][x_] = (2 if rev else 1)
+                        if (koma := self.banmen[Y][X]) == (2 if rev else 1):
+                            canrev += revlist
                             break
                         elif koma == (1 if rev else 2):
-                            revlist.append((y, x))
+                            revlist.append((Y, X))
                             n += 1
                         else:
                             break
                 except IndexError:
                     pass
+            
+            return canrev
 
         def check_valid_koma(self) -> int:
             num = 0
