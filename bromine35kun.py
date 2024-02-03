@@ -648,10 +648,10 @@ class bromine35:
                     # 辺、あるいは角に置けるか調べる
                     if any((self.check_side(i[1]) == 2) for i in enemycanput):
                         # 角に置けてしまうとき
-                        epts -= 120
+                        epts += 120
                     elif any((self.check_side(i[1]) == 1) for i in enemycanput):
                         # 辺に置けてしまうとき
-                        epts -= 15
+                        epts += 15
                 else:
                     # 敵がどこにも置けない(Zero divisionになるので回避)
                     if len(self.search_point()) == 0:
@@ -680,10 +680,10 @@ class bromine35:
                     self.banmen = [[i for i in r] for r in tbeforebanmen]
                 if len(cpts) != 0:
                     # 一手以上置ける場合
-                    points.append((first+epts+(sum(cpts)/len(cpts)), yx))
+                    points.append((first-epts+(sum(cpts)/len(cpts)), yx))
                 else:
                     # 一手も置けない場合(Zero division対策)
-                    points.append((first+epts, yx))
+                    points.append((first-epts, yx))
                 # 盤面を初期化
                 self.banmen = [[i for i in r] for r in fbeforebanmen]
             return points
