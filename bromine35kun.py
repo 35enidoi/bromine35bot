@@ -633,10 +633,13 @@ class bromine35:
                 # 辺、あるいは角にあるか調べる
                 if (fs := self.check_side(yx)) == 2:
                     # 角にある
-                    first += 10000
+                    first += 120
+                elif self.check_sumi(yx):
+                    # 危ない場所(隅)にある
+                    first -= 60
                 elif fs == 1:
                     # 辺にある
-                    first += 30
+                    first += 15
                 # 置いた場所を保存
                 tbeforebanmen = [[i for i in r] for r in self.banmen]
                 if len(enemycanput := self.search_point(True)) != 0:
@@ -645,10 +648,10 @@ class bromine35:
                     # 辺、あるいは角に置けるか調べる
                     if any((self.check_side(i[1]) == 2) for i in enemycanput):
                         # 角に置けてしまうとき
-                        epts -= 2000
+                        epts -= 120
                     elif any((self.check_side(i[1]) == 1) for i in enemycanput):
                         # 辺に置けてしまうとき
-                        epts -= 50
+                        epts -= 15
                 else:
                     # 敵がどこにも置けない(Zero divisionになるので回避)
                     if len(self.search_point()) == 0:
@@ -666,10 +669,10 @@ class bromine35:
                         cs = (sum(map(lambda x:x[0], mecanput))/len(mecanput))
                         if any(self.check_side(i[1]) == 2 for i in mecanput):
                             # 角における
-                            cs += 1000
+                            cs += 120
                         elif any(self.check_side(i[1]) == 1 for i in mecanput):
                             # 辺における
-                            cs += 50
+                            cs += 15
                         cpts.append(cs)
                     else:
                         cpts.append(0)
@@ -771,6 +774,17 @@ class bromine35:
                 if (not checkislist[0]) and (not checkislist[1]) and (not checkislist[3]):
                     return 1
             return 0
+
+        def check_sumi(self, yx:tuple[int, int]) -> bool:
+            """隣が角の隅にあるか確認する奴"""
+            #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
+            sides = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+
+            for i in sides:
+                if self.check_side((yx[0]+i[0], yx[1]+i[1])) == 2:
+                    return True
+            else:
+                return False
 
         def check_valid_koma(self) -> int:
             num = 0
