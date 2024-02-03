@@ -644,7 +644,7 @@ class bromine35:
                 tbeforebanmen = [[i for i in r] for r in self.banmen]
                 if len(enemycanput := self.search_point(True)) != 0:
                     # 敵が置ける場所がある場合
-                    epts = sum(map(lambda x:x[0], enemycanput))/len(enemycanput)
+                    epts = sum(map(lambda x:x[0], enemycanput))//2
                     # 辺、あるいは角に置けるか調べる
                     if any((self.check_side(i[1]) == 2) for i in enemycanput):
                         # 角に置けてしまうとき
