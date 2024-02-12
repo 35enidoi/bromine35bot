@@ -759,8 +759,8 @@ class bromine35:
             checkandlist = [(iswall[i] and iswall[i+4]) for i in range(4)]
             # 壁が対照的にないか
             rcheckandlist = [(not iswall[i] and not iswall[i+4]) for i in range(4)]
-            # 対照的か(一方が壁ならもう一方も壁なのか、逆もしかり)
-            checkislist = [(iswall[i] is iswall[i+4]) for i in range(4)]
+            # 反対照的か(一方が壁ならもう一方はなにもなしなのか、逆もしかり)
+            checkislist = [(iswall[i] is not iswall[i+4]) for i in range(4)]
 
             # 角の判別
             for i, v in enumerate(checkandlist):
