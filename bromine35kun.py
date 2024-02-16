@@ -819,20 +819,26 @@ def textworkput(text):
     with open(filepath,"a") as f:
         f.write(text+"\n")
 
-textworkput("bot start at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
-print("start")
-try:
-    br = bromine35()
-    asyncio.run(br.main())
-except KeyboardInterrupt as e:
-    print("break!!!")
-    if len(e.args) == 0:
+def main():
+    if not TESTMODE:
+        textworkput("bot start at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+    print("start")
+    try:
+        br = bromine35()
+        asyncio.run(br.main())
+    except KeyboardInterrupt as e:
+        print("break!!!")
+        if len(e.args) == 0:
+            if not TESTMODE:
+                asyncio.run(br.create_note("botとまります:blob_hello:"))
+    else:
         if not TESTMODE:
-            asyncio.run(br.create_note("botとまります:blob_hello:"))
-else:
-    if not TESTMODE:
-        asyncio.run(br.create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
-finally:
-    if not TESTMODE:
-        asyncio.run(br.create_reaction("9iisgwj3rf", "❌", Instant=True))
-        textworkput("bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+            asyncio.run(br.create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
+    finally:
+        print("finish")
+        if not TESTMODE:
+            asyncio.run(br.create_reaction("9iisgwj3rf", "❌", Instant=True))
+            textworkput("bot stop at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
+
+if __name__ == "__main__":
+    main()
