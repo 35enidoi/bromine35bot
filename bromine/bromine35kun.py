@@ -138,6 +138,7 @@ class bromine35:
             self.on_comeback[id] = func
 
     async def ws_send_d(self, ws:websockets.WebSocketClientProtocol):
+        __PRIORITY_TYPES = ("connect", "disconnect")
         for i, v in self.channels.items():
             await ws.send(json.dumps({        
             "type": "connect",
@@ -147,6 +148,16 @@ class bromine35:
                 "params": v[2]
             }
             }))
+        # queueの中身の初期化兼disconnect等を処理
+        while not self.send_queue.empty():
+            getter = await self.send_queue.get()
+            if any(getter["type"] is i for i in __PRIORITY_TYPES):
+                await ws.send(json.dumps({        
+                "type": getter[0],
+                "body": getter[1]
+                }))
+                if TESTMODE:
+                    print(f"putted:{getter}")
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self.send_queue.get()
