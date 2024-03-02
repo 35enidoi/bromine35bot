@@ -25,6 +25,7 @@ class bromine35:
         self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
         self.channels = {}
         self.on_comeback = {}
+        self.send_queue = asyncio.Queue()
 
         self.INSTANCE = "misskey.io"
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
@@ -82,7 +83,6 @@ class bromine35:
         # データ構造
         # uuid4 : (接続するチャンネル, 受け取り関数(async), params)
         # dict(uuid4 : tuple(channel, coroutinefunc, params))
-        self.send_queue = asyncio.Queue()
         self.channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i], {}) for i, v in enumerate(__CONST_CHANNEL)}
         # このwsdは最初に接続失敗すると未定義になるから保険のため
         wsd = None
