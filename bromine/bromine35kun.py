@@ -205,6 +205,39 @@ class bromine35:
         body = {"id":id_}
         self.ws_send("disconnect", body)
 
+    async def api_post(self, endp:str, wttime:int, **dicts) -> requests.Response:
+        url = f"https://{self.INSTANCE}/api/"+endp
+        dicts["i"] = self.TOKEN
+        return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
+
+    async def create_reaction(self, id, reaction, Instant=False):
+        if not Instant:
+            await asyncio.sleep(random.randint(3,5))
+        try:
+            await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
+            print("create reaction", reaction)
+        except Exception as e:
+            print("create reaction fail")
+            print(e)
+
+    async def create_follow(self, id):
+        try:
+            await asyncio.to_thread(self.mk.following_create, id)
+            print(f"follow create success id;{id}")
+        except Exception as e:
+            print(f"follow fail;{e}")
+
+    async def create_note(self, text, cw=None, direct=None, reply=None):
+        if direct == None:
+            notevisible = "public"
+        else:
+            notevisible = "specified"
+        try:
+            await asyncio.to_thread(self.mk.notes_create, text, cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
+            print("note create")
+        except Exception as e:
+            print(f"note create fail:{e}")
+
     async def detect_not_follow(self):
         try:
             followers = await asyncio.to_thread(self.mk.users_followers, user_id=self.MY_USER_ID)
@@ -355,39 +388,6 @@ class bromine35:
             elif i["text"] is not None:
                 kaibunsyo += i["text"].replace("\n", "")[0:random.randint(0,len(i["text"]) if len(i["text"]) <= 15 else 15)]
         await self.create_note(kaibunsyo.replace("#", "＃").replace("@","*"),reply=noteid)
-
-    async def api_post(self, endp:str, wttime:int, **dicts) -> requests.Response:
-        url = f"https://{self.INSTANCE}/api/"+endp
-        dicts["i"] = self.TOKEN
-        return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
-
-    async def create_reaction(self, id, reaction, Instant=False):
-        if not Instant:
-            await asyncio.sleep(random.randint(3,5))
-        try:
-            await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
-            print("create reaction", reaction)
-        except Exception as e:
-            print("create reaction fail")
-            print(e)
-
-    async def create_follow(self, id):
-        try:
-            await asyncio.to_thread(self.mk.following_create, id)
-            print(f"follow create success id;{id}")
-        except Exception as e:
-            print(f"follow fail;{e}")
-
-    async def create_note(self, text, cw=None, direct=None, reply=None):
-        if direct == None:
-            notevisible = "public"
-        else:
-            notevisible = "specified"
-        try:
-            await asyncio.to_thread(self.mk.notes_create, text, cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
-            print("note create")
-        except Exception as e:
-            print(f"note create fail:{e}")
 
     async def cpuwatch(self):
         while True:
