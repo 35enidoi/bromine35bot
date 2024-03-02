@@ -31,10 +31,6 @@ class bromine35:
 
     async def main(self):
         print("main start")
-        await self.connect_check()
-        if not TESTMODE:
-            await self.create_note("bot、動きます。:ablobblewobble:")
-            self.mk.notes_reactions_create("9iisgwj3rf", "✅")
         self.notes_queue = asyncio.Queue()
         pendings = [self.local_speed_watch()]
         other = asyncio.gather(*pendings, return_exceptions=True)
@@ -430,6 +426,9 @@ def main():
     print("start")
     try:
         br = bromine35()
+        if not TESTMODE:
+            asyncio.run(self.create_note("bot、動きます。:ablobblewobble:"))
+            asyncio.run(self.create_reaction("9iisgwj3rf", "✅"))
         asyncio.run(br.main())
     except KeyboardInterrupt as e:
         print("break!!!")
