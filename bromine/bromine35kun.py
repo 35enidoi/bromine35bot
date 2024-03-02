@@ -438,8 +438,8 @@ def main():
     try:
         br = bromine35()
         if not TESTMODE:
-            asyncio.run(self.create_note("bot、動きます。:ablobblewobble:"))
-            asyncio.run(self.create_reaction("9iisgwj3rf", "✅"))
+            asyncio.run(br.create_note("bot、動きます。:ablobblewobble:"))
+            asyncio.run(br.create_reaction("9iisgwj3rf", "✅"))
         asyncio.run(br.main())
     except KeyboardInterrupt as e:
         print("break!!!")
