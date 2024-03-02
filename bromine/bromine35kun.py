@@ -23,10 +23,14 @@ class bromine35:
         self.TESTMODE = TESTMODE
         self.V = 1.1
         self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
+        self.channels = {}
+        self.on_comeback = {}
+
         self.INSTANCE = "misskey.io"
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
         self.MY_USER_ID = self.mk.i()["id"]
+
         self.HOST_USER_ID = "9gwek19h00"
         self.explosion = False
         self.LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
@@ -80,7 +84,6 @@ class bromine35:
         # dict(uuid4 : tuple(channel, coroutinefunc, params))
         self.send_queue = asyncio.Queue()
         self.channels = {str(uuid.uuid4()):(v, __CONST_FUNCS[i], {}) for i, v in enumerate(__CONST_CHANNEL)}
-        self.on_comeback = {}
         # このwsdは最初に接続失敗すると未定義になるから保険のため
         wsd = None
         while True:
@@ -172,57 +175,30 @@ class bromine35:
             if TESTMODE:
                 print(f"putted:{getter}")
 
-    async def ws_send(self, type_:str, channel:str=None, id_:str=None, func_=None, **dicts) -> str:
-        """ウェブソケットへsendして場合によっては記憶したりするもの
-        type_:str
-        channel:str
-        id_:str|None
-        func_:coroutinefunction
-        ```
-        if type_ == "connect":
-            チャンネルを記憶
-            func_が必要
-            idがNoneの場合idを自動生成する
-            idを返す
-            body = {
-                "channel" : channel,
-                "id" : id_,
-                "params" : dicts
-            }
-        else:
-            Noneを返す
-            if type_ == "disconnect:
-                チャンネルを記憶から削除
-                body = {
-                    "id" : id_
-                }
-            else:
-                body = dicts
-        ```"""
-        if type_ == "connect":
-            if not asyncio.iscoroutinefunction(func_):
-                raise ValueError("func_がコルーチンじゃないです。")
-            if id_ is None:
-                ret = str(uuid.uuid4())
-            else:
-                ret = id_
-            body = {
-                "channel" : channel,
-                "id" : id_,
-                "params" : dicts
-            }
-            self.channels[ret] = (channel, func_, dicts)
-        else:
-            ret = None
-            if type_ == "disconnect":
-                self.channels.pop(id_)
-                body = {
-                    "id" : id_
-                }
-            else:
-                body = dicts
-        await self.send_queue.put((type_, body))
-        return ret
+    def ws_send(self, type_:str, body:dict) -> None:
+        """ウェブソケットへsendするdaemonのqueueに送る奴"""
+        self.send_queue.put_nowait((type_, body))
+
+    def ws_connect(self, channel:str, func_, id_:str=None, **params) -> str:
+        """channelに接続するときに使う関数 idを返す"""
+        if not asyncio.iscoroutinefunction(func_):
+            raise ValueError("func_がコルーチンじゃないです。")
+        if id_ is None:
+            id_ = str(uuid.uuid4())
+        self.channels[id_] = (channel, func_, params)
+        body = {
+            "channel" : channel,
+            "id" : id_,
+            "params" : params
+        }
+        self.ws_send("connect", body)
+        return id_
+
+    def ws_disconnect(self, id_:str) -> None:
+        """channelの接続解除に使う関数"""
+        self.channels.pop(id_)
+        body = {"id":id_}
+        self.ws_send("disconnect", body)
 
     async def detect_not_follow(self):
         try:
@@ -317,12 +293,12 @@ class bromine35:
                 id_ = str(uuid.uuid4())
                 rv = reversi_sys(self, res.json(), id_)
                 self.on_comebacker(rv.socketid, rv.comeback)
-                await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
+                await self.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
                 # フォームは今のところ未対応みたい
 
                 # # フォーム送信
                 # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
-                # await self.ws_send("channel", id=rv.socketid, type="init-form", body=form)
+                # await self.ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
         elif info["type"] == "matched":
             game = info["body"]["game"]
             if TESTMODE:
@@ -333,7 +309,7 @@ class bromine35:
                 id_ = str(uuid.uuid4())
                 rv = reversi_sys(self, game, id_)
                 self.on_comebacker(rv.socketid, rv.comeback)
-                await self.ws_send("connect", func_=rv.interface, channel="reversiGame", id_=id_, gameId=rv.game_id)
+                await self.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
         else:
             print("reversi anything comming")
             print(info)
