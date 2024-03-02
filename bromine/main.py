@@ -5,14 +5,14 @@ from misskey import exceptions
 from uuid import uuid4
 from random import randint
 
-import bromine35kun
+import core
 from reversi import reversi_sys
 
 instance = "misskey.io"
 token = os.environ["MISSKEY_BOT_TOKEN"]
 HOST_USER_ID = "9gwek19h00"
 
-br = bromine35kun.bromine35(instance, token, True)
+br = core.bromine35(instance, token, True)
 
 notes_queue = asyncio.Queue()
 
