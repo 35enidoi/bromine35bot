@@ -24,6 +24,7 @@ class bromine35:
         self.V = 1.1
         self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
         self.channels = {}
+        self.pendings = [self.local_speed_watch]
         self.on_comeback = {}
         self.send_queue = asyncio.Queue()
 
@@ -41,8 +42,7 @@ class bromine35:
     async def main(self):
         print("main start")
         self.notes_queue = asyncio.Queue()
-        pendings = [self.local_speed_watch()]
-        other = asyncio.gather(*pendings, return_exceptions=True)
+        other = asyncio.gather(*(i() for i in self.pendings), return_exceptions=True)
         try:
             await asyncio.create_task(self.runner())
         except Exception as e:
@@ -143,6 +143,11 @@ class bromine35:
             if not asyncio.iscoroutinefunction(func):
                 raise ValueError("与える関数はコルーチンでなければなりません")
             self.on_comeback[id] = func
+
+    def add_pending(self, func):
+        if not asyncio.iscoroutinefunction(func):
+            raise ValueError("func_がコルーチンじゃないです。")
+        self.pendings.append(func)
 
     async def ws_send_d(self, ws:websockets.WebSocketClientProtocol):
         __PRIORITY_TYPES = ("connect", "disconnect")
