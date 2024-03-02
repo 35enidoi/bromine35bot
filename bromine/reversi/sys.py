@@ -102,7 +102,7 @@ class reversi_sys(reversi_core):
                 # 自分がself.okじゃない
                 if info["body"][f"user{2 if self.user1 else 1}"]:
                     # 相手の合図の場合(分けてる理由は無限ループになるから)
-                    await self.br.ws_send("channel", {"id":self.socketid, "type":"ready", "body":self.ok})
+                    self.br.ws_send("channel", {"id":self.socketid, "type":"ready", "body":self.ok})
         else:
             # ここからは対戦中あるいは対戦後に送られてくる
             if type_ == "ended":
@@ -154,7 +154,7 @@ class reversi_sys(reversi_core):
                             mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
                         pt = mpts[randint(0, len(mpts)-1)]
                         self.set_point(pos := self.postoyx(pt[1], rev=True))
-                        await self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                        self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
             elif type_ == "log":
                 # 石が置かれたときに来る奴
                 body = info["body"]
@@ -188,7 +188,7 @@ class reversi_sys(reversi_core):
                         
                         # 内部の盤面に石を置いてから、石を置いたことをwebsocketの送る
                         self.set_point(pos := self.postoyx(pt[1], rev=True))
-                        await self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                        self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
 
                         # 相手が打てないときの処理
                         pt = self.search_point(True)
@@ -208,7 +208,7 @@ class reversi_sys(reversi_core):
                         if len(canput) != 0:
                             # 一個以上空きがある
                             self.set_point(pos:=self.postoyx(canput[randint(0, len(canput)-1)], rev=True))
-                            await self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                            self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
             elif type_ == "enemycantput":
                 # 相手が打てないとき
                 # 処理が速すぎてたまにバグるのでちょっと待つ
@@ -230,7 +230,7 @@ class reversi_sys(reversi_core):
                         mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
                     pt = mpts[randint(0, len(mpts)-1)]
                     self.set_point(pos := self.postoyx(pt[1], rev=True))
-                    await self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                    self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
                     pt = self.search_point(True)
                     if len(pt) == 0:
                         if self.check_valid_koma() != 0:
