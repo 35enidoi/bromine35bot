@@ -19,16 +19,16 @@ class bromine35:
     class Explosion(Exception):
         pass
 
-    def __init__(self) -> None:
-        self.TESTMODE = TESTMODE
+    def __init__(self, instance, token, testmode:bool=False) -> None:
+        self.TESTMODE = testmode
         self.V = 1.1
-        self.TOKEN = os.environ["MISSKEY_BOT_TOKEN"]
         self.channels = {}
         self.pendings = [self.local_speed_watch]
         self.on_comeback = {}
         self.send_queue = asyncio.Queue()
 
-        self.INSTANCE = "misskey.io"
+        self.INSTANCE = instance
+        self.TOKEN = token
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
         self.MY_USER_ID = self.mk.i()["id"]
@@ -168,7 +168,7 @@ class bromine35:
                 "type": getter[0],
                 "body": getter[1]
                 }))
-                if TESTMODE:
+                if self.TESTMODE:
                     print(f"putted:{getter}")
         while True:
             # 型:tuple(type:str, body:dict)
@@ -177,7 +177,7 @@ class bromine35:
             "type": getter[0],
             "body": getter[1]
             }))
-            if TESTMODE:
+            if self.TESTMODE:
                 print(f"putted:{getter}")
 
     def ws_send(self, type_:str, body:dict) -> None:
@@ -259,7 +259,7 @@ class bromine35:
                     elif "explosion" in note["body"]["text"]:
                         print("explosion!!!")
                         await self.create_reaction(note["body"]["id"],":explosion:",Instant=True)
-                        if not TESTMODE:
+                        if not self.TESTMODE:
                             await self.create_note("bot、爆発します。:explosion:")
                         self.explosion = True
                         return
@@ -289,7 +289,7 @@ class bromine35:
 
     async def onreversi(self, info):
         if info["type"] == "invited":
-            if TESTMODE:
+            if self.TESTMODE:
                 print("invite!")
             if not (userid := info["body"]["user"]["id"]) in reversi_sys.playing_user_list:
                 # プレイ中のuseridのリストにぶち込む
@@ -306,7 +306,7 @@ class bromine35:
                 # await self.ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
         elif info["type"] == "matched":
             game = info["body"]["game"]
-            if TESTMODE:
+            if self.TESTMODE:
                 print("matched!")
             if not (userid := game[f"user{2 if game['user1Id'] == self.MY_USER_ID else 1}"]["id"]) in reversi_sys.playing_user_list:
                 # プレイ中のuseridのリストにぶち込む
@@ -420,7 +420,7 @@ def main():
         textworkput("bot start at {}".format(datetime.now().strftime("%Y/%m/%d %H:%M:%S")))
     print("start")
     try:
-        br = bromine35()
+        br = bromine35("misskey.io", os.environ["MISSKEY_BOT_TOKEN"], TESTMODE)
         if not TESTMODE:
             asyncio.run(br.create_note("bot、動きます。:ablobblewobble:"))
             asyncio.run(br.create_reaction("9iisgwj3rf", "✅"))
