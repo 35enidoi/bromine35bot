@@ -16,22 +16,6 @@ br = bromine35kun.bromine35(instance, token, True)
 
 notes_queue = asyncio.Queue()
 
-async def detect_not_follow():
-    try:
-        followers = await asyncio.to_thread(br.mk.users_followers, user_id=br.MY_USER_ID)
-        not_in = []
-        for i in followers:
-            if not i["follower"]["isFollowing"] and not i["follower"]["hasPendingFollowRequestFromYou"]:
-                not_in.append(i["followerId"])
-        for i in not_in:
-            print(f"detect not follow! id:{i}")
-            await br.create_follow(i)
-            await asyncio.sleep(10)
-    except exceptions.MisskeyAPIException as e:
-        print(f"detect not follow error:{e}")
-        await asyncio.sleep(10)
-        asyncio.create_task(detect_not_follow)
-
 async def local_speed_watch():
     interval = 61
     while True:
@@ -67,10 +51,26 @@ async def cpuwatch():
         await br.create_note(text="ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(max(cpu_temp),min(cpu_temp),sum(cpu_temp)/len(cpu_temp)), direct=["9gwek19h00"])
 
 # cpuwatchは今使ってない
-br.add_pending(detect_not_follow)
 br.add_pending(local_speed_watch)
 # br.add_pending(cpuwatch)
 
+async def detect_not_follow():
+    try:
+        followers = await asyncio.to_thread(br.mk.users_followers, user_id=br.MY_USER_ID)
+        not_in = []
+        for i in followers:
+            if not i["follower"]["isFollowing"] and not i["follower"]["hasPendingFollowRequestFromYou"]:
+                not_in.append(i["followerId"])
+        for i in not_in:
+            print(f"detect not follow! id:{i}")
+            await br.create_follow(i)
+            await asyncio.sleep(10)
+    except exceptions.MisskeyAPIException as e:
+        print(f"detect not follow error:{e}")
+        await asyncio.sleep(10)
+        asyncio.create_task(detect_not_follow)
+
+br.on_comebacker(func=detect_not_follow)
 
 LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
                      ":_ma::_lu::_a::_wave:","まぅあ～",

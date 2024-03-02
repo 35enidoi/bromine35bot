@@ -123,16 +123,19 @@ class bromine35:
                     except asyncio.CancelledError:
                         pass
 
-    def on_comebacker(self, id:str, func=None, rev:bool=False):
+    def on_comebacker(self, id_:str=None, func=None, rev:bool=False):
         """comebackを作る
         
         delの時はfuncいらない"""
+        if id_ is None:
+            id_ = uuid.uuid4()
         if rev:
-            del self._on_comeback[id]
+            del self._on_comeback[id_]
         else:
             if not asyncio.iscoroutinefunction(func):
                 raise ValueError("与える関数はコルーチンでなければなりません")
-            self._on_comeback[id] = func
+            self._on_comeback[id_] = func
+        return id_
 
     def add_pending(self, func):
         if not asyncio.iscoroutinefunction(func):
