@@ -15,6 +15,10 @@ BOT_LOG_FILE = "botlog.txt"
 TESTMODE = True
 
 class bromine35:
+
+    class Explosion(Exception):
+        pass
+
     def __init__(self) -> None:
         self.TESTMODE = TESTMODE
         self.V = 1.1
@@ -91,7 +95,7 @@ class bromine35:
                     while True:
                         data = json.loads(await ws.recv())
                         if self.explosion:
-                            raise KeyboardInterrupt
+                            raise self.Explosion("BOOM!!!!!!")
                         if data['type'] == 'channel':
                             for i, v in self.channels.items():
                                 if data["body"]["id"] == i:
@@ -285,7 +289,6 @@ class bromine35:
                         print(res.status_code)
                         asyncio.create_task(self.create_reaction(note["body"]["id"],"🆗",Instant=True))
                         return
-
             if note["body"]["user"]["isBot"]:
                 print("mention bot detected")
                 print(note["body"]["user"]["name"])
@@ -446,6 +449,9 @@ def main():
         if len(e.args) == 0:
             if not TESTMODE:
                 asyncio.run(br.create_note("botとまります:blob_hello:"))
+    except br.Explosion:
+        if not TESTMODE:
+            asyncio.run(br.create_note("botとまります:blob_hello:"))
     else:
         if not TESTMODE:
             asyncio.run(br.create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:"))
