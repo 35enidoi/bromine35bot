@@ -35,7 +35,7 @@ class bromine35:
 
     async def main(self):
         print("main start")
-        self.logput("bot start at {}".format(self._logtime))
+        self.logput("bot start at {}".format(self._logtime()))
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -49,7 +49,7 @@ class bromine35:
                 await other
             except asyncio.exceptions.CancelledError:
                 print("catch")
-            self.logput("bot stop at {}".format(self._logtime))
+            self.logput("bot stop at {}".format(self._logtime()))
             print("main finish")
 
     async def connect_check(self):
@@ -60,15 +60,15 @@ class bromine35:
                 print("connect checked")
             except asyncio.exceptions.TimeoutError:
                 print("timeout")
-                self.logput("timeout at {}".format(self._logtime))
+                self.logput("timeout at {}".format(self._logtime()))
                 await asyncio.sleep(30)
             except websockets.exceptions.WebSocketException as e:
                 print(f"websocket error: {e}")
-                self.logput("websocket error;{} at {}".format(e,self._logtime))
+                self.logput("websocket error;{} at {}".format(e,self._logtime()))
                 await asyncio.sleep(40)
             except Exception as e:
                 print(f"yoteigai error:{e}")
-                self.logput("yoteigai error;{} at {}".format(e,self._logtime))
+                self.logput("yoteigai error;{} at {}".format(e,self._logtime()))
                 await asyncio.sleep(60)
             else:
                 break
@@ -105,7 +105,7 @@ class bromine35:
             except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
                 print("error occured")
                 print(e)
-                self.logput("error occured:{} at {}".format(e,self._logtime))
+                self.logput("error occured:{} at {}".format(e,self._logtime()))
                 await asyncio.sleep(2)
                 await self.connect_check()
                 continue
