@@ -45,7 +45,7 @@ class bromine35:
         self.logger = logging.getLogger("bromine35bot")
 
     async def main(self):
-        self.logger.info("bot start")
+        self.logger.warning("bot start")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -59,7 +59,7 @@ class bromine35:
                 await other
             except asyncio.exceptions.CancelledError:
                 print("catch")
-            self.logger.info("bot stop")
+            self.logger.warning("bot stop")
 
     async def connect_check(self):
         while True:
@@ -104,7 +104,7 @@ class bromine35:
                             else:
                                 self.logger.warning("data come from unknown channel")
                         else:
-                            self.logger.warning(f"data come from not channel:type[{data['type']}]")
+                            self.logger.warning(f"data come from not channel, datatype[{data['type']}]")
 
             except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
                 self.logger.warning(f"error occured:{e}")
@@ -113,7 +113,7 @@ class bromine35:
                 continue
 
             except Exception as e:
-                self.logger.fatal(f"fatal Error:{e}, args:{e.args}")
+                self.logger.fatal(f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
             
             finally:
@@ -162,8 +162,6 @@ class bromine35:
                 "type": getter[0],
                 "body": getter[1]
                 }))
-                if self.TESTMODE:
-                    self.logger.info(f"websocket putted:{getter}")
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self._send_queue.get()
@@ -171,8 +169,6 @@ class bromine35:
             "type": getter[0],
             "body": getter[1]
             }))
-            if self.TESTMODE:
-                self.logger.info(f"websocket putted:{getter}")
 
     def ws_send(self, type_:str, body:dict) -> None:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
@@ -192,6 +188,7 @@ class bromine35:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
+        self.logger.info(f"connect channel:{channel}, id:{id_}")
         return id_
 
     def ws_disconnect(self, id_:str) -> None:
@@ -199,6 +196,7 @@ class bromine35:
         channel = self._channels.pop(id_)[0]
         body = {"id":id_}
         self.ws_send("disconnect", body)
+        self.logger.info(f"disconnect channel:{channel}, id:{id_}")
 
     async def api_post(self, endp:str, wttime:int, **dicts) -> requests.Response:
         url = f"https://{self.INSTANCE}/api/"+endp
