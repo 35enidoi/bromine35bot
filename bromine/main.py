@@ -12,7 +12,7 @@ instance = "misskey.io"
 token = os.environ["MISSKEY_BOT_TOKEN"]
 HOST_USER_ID = "9gwek19h00"
 
-br = core.bromine35(instance, token)
+br = core.bromine35(instance, token, True)
 
 notes_queue = asyncio.Queue()
 

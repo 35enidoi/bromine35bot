@@ -3,10 +3,10 @@ import requests
 import websockets
 import json
 import asyncio
-from datetime import datetime
 import uuid
 import random
 import os
+import logging
 
 class bromine35:
 
@@ -33,9 +33,19 @@ class bromine35:
 
         self.explosion = False
 
+        # logger作成
+        logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
+        level = logging.INFO
+        
+        logging.basicConfig(format=logformat,
+                            filename=os.path.abspath(os.path.join(os.path.dirname(__file__),f'./{self.logpath}')),
+                            encoding="utf-8",
+                            level=level)
+
+        self.logger = logging.getLogger("bromine35bot")
+
     async def main(self):
-        print("main start")
-        self.logput("bot start at {}".format(self._logtime()))
+        self.logger.info("bot start")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -49,26 +59,24 @@ class bromine35:
                 await other
             except asyncio.exceptions.CancelledError:
                 print("catch")
-            self.logput("bot stop at {}".format(self._logtime()))
-            print("main finish")
+            self.logger.info("bot stop")
 
     async def connect_check(self):
         while True:
             try:
                 async with websockets.connect(self.WS_URL):
                     pass
-                print("connect checked")
+                self.logger.info("connect check success")
             except asyncio.exceptions.TimeoutError:
-                print("timeout")
-                self.logput("timeout at {}".format(self._logtime()))
+                self.logger.warning("websocket timeout")
                 await asyncio.sleep(30)
             except websockets.exceptions.WebSocketException as e:
                 print(f"websocket error: {e}")
-                self.logput("websocket error;{} at {}".format(e,self._logtime()))
+                self.logger.warning(f"websocket error:{e}")
                 await asyncio.sleep(40)
             except Exception as e:
                 print(f"yoteigai error:{e}")
-                self.logput("yoteigai error;{} at {}".format(e,self._logtime()))
+                self.logger.critical(f"yoteigai error:{e}")
                 await asyncio.sleep(60)
             else:
                 break
@@ -79,12 +87,11 @@ class bromine35:
         wsd = None
         while True:
             try:
-                print("connect start")
                 async with websockets.connect(self.WS_URL) as ws:
                     wsd = asyncio.create_task(self.ws_send_d(ws))
                     for i in self._on_comeback.values():
                         await i()
-                    print(self._channels.keys(),"connect")
+                    self.logger.info("websocket connect success")
                     while True:
                         data = json.loads(await ws.recv())
                         if self.explosion:
@@ -95,24 +102,18 @@ class bromine35:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
                             else:
-                                print("謎のチャンネルからのデータが来ました")
-                                print(data)
+                                self.logger.warning("data come from unknown channel")
                         else:
-                            print("channel以外からのデータが来ました")
-                            print(data["type"])
-                            print(data)
+                            self.logger.warning(f"data come from not channel:type[{data['type']}]")
 
             except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
-                print("error occured")
-                print(e)
-                self.logput("error occured:{} at {}".format(e,self._logtime()))
+                self.logger.warning(f"error occured:{e}")
                 await asyncio.sleep(2)
                 await self.connect_check()
                 continue
 
             except Exception as e:
-                print(e, e.args)
-                self.logput(f"fatal Error; {e}")
+                self.logger.fatal(f"fatal Error:{e}, args:{e.args}")
                 raise e
             
             finally:
@@ -162,7 +163,7 @@ class bromine35:
                 "body": getter[1]
                 }))
                 if self.TESTMODE:
-                    print(f"putted:{getter}")
+                    self.logger.info(f"websocket putted:{getter}")
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self._send_queue.get()
@@ -171,7 +172,7 @@ class bromine35:
             "body": getter[1]
             }))
             if self.TESTMODE:
-                print(f"putted:{getter}")
+                self.logger.info(f"websocket putted:{getter}")
 
     def ws_send(self, type_:str, body:dict) -> None:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
@@ -217,17 +218,16 @@ class bromine35:
             await asyncio.sleep(random.randint(3,5))
         try:
             await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
-            print("create reaction", reaction)
+            self.logger.info(f"create reaction success:{reaction}")
         except Exception as e:
-            print("create reaction fail")
-            print(e)
+            self.logger.info(f"create reaction fail:{e}")
 
     async def create_follow(self, id):
         try:
             await asyncio.to_thread(self.mk.following_create, id)
-            print(f"follow create success id;{id}")
+            self.logger.info("follow create success")
         except Exception as e:
-            print(f"follow fail;{e}")
+            self.logger.info(f"follow create fail:{e}")
 
     async def create_note(self, text, cw=None, direct=None, reply=None):
         if direct == None:
@@ -236,15 +236,6 @@ class bromine35:
             notevisible = "specified"
         try:
             await asyncio.to_thread(self.mk.notes_create, text, cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
-            print("note create")
+            self.logger.info("note create success")
         except Exception as e:
-            print(f"note create fail:{e}")
-
-    def logput(self, text):
-        # logを記入する関数
-        filepath = os.path.abspath(os.path.join(os.path.dirname(__file__),f'./{self.logpath}'))
-        with open(filepath,"a") as f:
-            f.write(text+"\n")
-
-    def _logtime(self):
-        return datetime.now().strftime("%Y/%m/%d %H:%M:%S")
+            self.logger.info(f"note create fail:{e}")
