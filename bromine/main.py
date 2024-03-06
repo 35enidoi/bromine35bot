@@ -22,20 +22,11 @@ async def local_speed_watch():
         await asyncio.sleep(60*interval)
         notes = 0
         re_notes = 0
-        userdetect = {}
         while not notes_queue.empty():
-            notesinfo = await notes_queue.get()
-            if notesinfo[0] == "note":
+            if await notes_queue.get() == "note":
                 notes += 1
             else:
                 re_notes += 1
-            if notesinfo[1] not in userdetect.keys():
-                userdetect[notesinfo[1]] = 1
-            else:
-                userdetect[notesinfo[1]] += 1
-        userdetect = sorted(userdetect.items(), key=lambda x:x[1], reverse=True)
-        for i in range(10 if len(userdetect) >= 10 else len(userdetect)):
-            print(f"{i+1}; {userdetect[i]}")
         print(f"local speed notes;{notes}, renotes;{re_notes}")
         print("per second notes;{} re_notes;{}".format(round(notes/(60*interval), 2), round(re_notes/(60*interval), 2)))
         notetext = "ローカルの流速です:eyes_fidgeting:\n ノートの数;{}個 {}毎秒".format(notes, round(notes/(60*interval), 2))
@@ -89,9 +80,9 @@ async def onnote(note):
             asyncio.create_task(br.create_reaction(note["id"], ":blobcat_frustration:"))
     # ノートはlocal_speed_watchに流す
     if note.get("renoteId"):
-        await notes_queue.put(("renote",note["userId"]))
+        await notes_queue.put("renote")
     else:
-        await notes_queue.put(("note",note["userId"]))
+        await notes_queue.put("note")
 
 async def onnotify(note):
     print("notification coming")
