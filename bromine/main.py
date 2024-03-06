@@ -174,9 +174,9 @@ async def onreversi(info):
         print("reversi anything comming")
         print(info)
 
-br.add_ws_connect("main", onnotify)
-br.add_ws_connect("localTimeline", onnote)
-br.add_ws_connect("reversi", onreversi)
+br.ws_connect("main", onnotify)
+br.ws_connect("localTimeline", onnote)
+br.ws_connect("reversi", onreversi)
 
 async def kaibunsyo(noteid):
     kaibunsyo = ""

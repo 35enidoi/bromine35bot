@@ -190,23 +190,15 @@ class bromine35:
             "id" : id_,
             "params" : params
         }
-        self.ws_send("connect", body)
+        if "_send_queue" in self.__dict__:
+            self.ws_send("connect", body)
         return id_
 
     def ws_disconnect(self, id_:str) -> None:
         """channelの接続解除に使う関数"""
-        self._channels.pop(id_)
+        channel = self._channels.pop(id_)[0]
         body = {"id":id_}
         self.ws_send("disconnect", body)
-
-    def add_ws_connect(self, channel:str, func_, id_:str=None, **params) -> str:
-        """mainを実行する前に入れる場合に使う"""
-        if not asyncio.iscoroutinefunction(func_):
-            raise ValueError("func_がコルーチンじゃないです。")
-        if id_ is None:
-            id_ = str(uuid.uuid4())
-        self._channels[id_] = (channel, func_, params)
-        return id_
 
     async def api_post(self, endp:str, wttime:int, **dicts) -> requests.Response:
         url = f"https://{self.INSTANCE}/api/"+endp
