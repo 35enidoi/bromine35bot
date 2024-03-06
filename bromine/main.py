@@ -116,7 +116,7 @@ async def onnotify(note):
                     await br.create_reaction(note["body"]["id"],":explosion:",Instant=True)
                     if not br.TESTMODE:
                         await br.create_note("bot、爆発します。:explosion:")
-                    br.explosion = True
+                    br.stopbot()
                     return
                 elif "invite" in note["body"]["text"]:
                     print("reversi invite comming")
@@ -222,7 +222,7 @@ def main():
         asyncio.run(setup())
     try:
         asyncio.run(br.main())
-    except (KeyboardInterrupt, br.Explosion):
+    except (KeyboardInterrupt, core.StopBot):
         isyoteigai = False
     else:
         isyoteigai = True

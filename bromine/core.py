@@ -8,11 +8,10 @@ import random
 import os
 import logging
 
+class StopBot(Exception):
+    pass
+
 class bromine35:
-
-    class Explosion(Exception):
-        pass
-
     def __init__(self, instance, token, testmode:bool=False) -> None:
         self.TESTMODE = testmode
         self.logpath = "botlog.txt"
@@ -31,8 +30,6 @@ class bromine35:
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
         self.MY_USER_ID = self.mk.i()["id"]
 
-        self.explosion = False
-
         # logger作成
         logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
         level = logging.INFO
@@ -50,7 +47,11 @@ class bromine35:
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
         try:
-            await asyncio.create_task(self._runner())
+            self.__runner = asyncio.create_task(self._runner())
+            try:
+                await self.__runner
+            except asyncio.CancelledError as e:
+                raise StopBot
         except Exception as e:
             raise e
         finally:
@@ -94,8 +95,6 @@ class bromine35:
                     self.logger.info("websocket connect success")
                     while True:
                         data = json.loads(await ws.recv())
-                        if self.explosion:
-                            raise self.Explosion("BOOM!!!!!!")
                         if data['type'] == 'channel':
                             for i, v in self._channels.items():
                                 if data["body"]["id"] == i:
@@ -123,6 +122,12 @@ class bromine35:
                         await wsd
                     except asyncio.CancelledError:
                         pass
+
+    def stopbot(self):
+        """stop bot.
+        ATTENTION:this function not work if not start bot."""
+        if f"_{self.__class__.__name__}__runner" in self.__dict__:
+            self.__runner.cancel(msg="stop bot")
 
     def on_comebacker(self, id_:str=None, func=None, rev:bool=False):
         """comebackを作る
