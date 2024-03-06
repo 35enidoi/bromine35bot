@@ -50,7 +50,7 @@ class bromine35:
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
         try:
-            await asyncio.create_task(self.runner())
+            await asyncio.create_task(self._runner())
         except Exception as e:
             raise e
         finally:
@@ -61,7 +61,7 @@ class bromine35:
                 print("catch")
             self.logger.warning("bot stop")
 
-    async def connect_check(self):
+    async def _connect_check(self):
         while True:
             try:
                 async with websockets.connect(self.WS_URL):
@@ -82,13 +82,13 @@ class bromine35:
                 break
         await asyncio.sleep(2)
 
-    async def runner(self):
+    async def _runner(self):
         # このwsdは最初に接続失敗すると未定義になるから保険のため
         wsd = None
         while True:
             try:
                 async with websockets.connect(self.WS_URL) as ws:
-                    wsd = asyncio.create_task(self.ws_send_d(ws))
+                    wsd = asyncio.create_task(self._ws_send_d(ws))
                     for i in self._on_comeback.values():
                         await i()
                     self.logger.info("websocket connect success")
@@ -109,7 +109,7 @@ class bromine35:
             except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
                 self.logger.warning(f"error occured:{e}")
                 await asyncio.sleep(2)
-                await self.connect_check()
+                await self._connect_check()
                 continue
 
             except Exception as e:
@@ -143,7 +143,7 @@ class bromine35:
             raise ValueError("func_がコルーチンじゃないです。")
         self._pendings.append(func)
 
-    async def ws_send_d(self, ws:websockets.WebSocketClientProtocol):
+    async def _ws_send_d(self, ws:websockets.WebSocketClientProtocol):
         __PRIORITY_TYPES = ("connect", "disconnect")
         for i, v in self._channels.items():
             await ws.send(json.dumps({        
