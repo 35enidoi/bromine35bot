@@ -1,5 +1,5 @@
 # bromine35bot  
-頑張って作った[bromine35](https://misskey.io/@bromine35)君のソースコードです  
+頑張って作ったmisskeyのbot、[bromine35](https://misskey.io/@bromine35)君のソースコードです  
 github使い方段々わかってきたかも  
 
 主にmisskey.pyとwebsocketsを使ってます  
