@@ -83,14 +83,21 @@ class bromine35:
         await asyncio.sleep(2)
 
     async def _runner(self):
-        # このwsdは最初に接続失敗すると未定義になるから保険のため
+        # この変数は最初に接続失敗すると未定義になるから保険のため
         wsd = None
+        comebacks = None
         while True:
             try:
                 async with websockets.connect(self.WS_URL) as ws:
                     wsd = asyncio.create_task(self._ws_send_d(ws))
+                    _cmbs = []
                     for i in self._on_comeback.values():
-                        await i()
+                        if i[0]:
+                            await i[1]()
+                        else:
+                            _cmbs.append(i[1]())
+                    if _cmbs != []:
+                        comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
                     self.logger.info("websocket connect success")
                     while True:
                         data = json.loads(await ws.recv())
@@ -123,8 +130,15 @@ class bromine35:
                         await wsd
                     except asyncio.CancelledError:
                         pass
+                if comebacks is not None:
+                    comebacks.cancel()
+                    try:
+                        await comebacks
+                    except asyncio.CancelledError:
+                        pass
+                    comebacks = None
 
-    def on_comebacker(self, id_:str=None, func=None, rev:bool=False):
+    def on_comebacker(self, id_:str=None, func=None, *, block:bool=False, rev:bool=False):
         """comebackを作る
         
         delの時はfuncいらない"""
@@ -135,7 +149,7 @@ class bromine35:
         else:
             if not asyncio.iscoroutinefunction(func):
                 raise ValueError("与える関数はコルーチンでなければなりません")
-            self._on_comeback[id_] = func
+            self._on_comeback[id_] = (block, func)
         return id_
 
     def add_pending(self, func):

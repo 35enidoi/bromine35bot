@@ -56,7 +56,7 @@ async def detect_not_follow():
             print(f"detect not follow! id:{i}")
             await br.create_follow(i)
             await asyncio.sleep(10)
-    except exceptions.MisskeyAPIException as e:
+    except Exception as e:
         print(f"detect not follow error:{e}")
         await asyncio.sleep(10)
         asyncio.create_task(detect_not_follow)
@@ -143,7 +143,7 @@ async def onreversi(info):
             res = await br.api_post("reversi/match", 30, userId=userid)
             id_ = str(uuid4())
             rv = reversi_sys(br, res.json(), id_)
-            br.on_comebacker(rv.socketid, rv.comeback)
+            br.on_comebacker(rv.socketid, rv.comeback, block=True)
             br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
             # フォームは今のところ未対応みたい
 
@@ -159,7 +159,7 @@ async def onreversi(info):
             reversi_sys.playing_user_list.append(userid)
             id_ = str(uuid4())
             rv = reversi_sys(br, game, id_)
-            br.on_comebacker(rv.socketid, rv.comeback)
+            br.on_comebacker(rv.socketid, rv.comeback, block=True)
             br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
     else:
         print("reversi anything comming")
@@ -215,8 +215,10 @@ def main():
         asyncio.run(br.main())
     except (KeyboardInterrupt, br.Explosion):
         isyoteigai = False
-    else:
+    except Exception:
         isyoteigai = True
+    else:
+        isyoteigai = False
     finally:
         if not br.TESTMODE:
             asyncio.run(fin(isyoteigai))
