@@ -2,12 +2,13 @@ from random import randint
 import asyncio
 from .core import reversi_core
 
+
 class reversi_sys(reversi_core):
 
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
-    def __init__(self, br, content:dict, socketid:str) -> None:
+    def __init__(self, br, content: dict, socketid: str) -> None:
         """Reversi system init"""
         # reversi version
         self.RV = reversi_core.RC_VERSION
@@ -19,15 +20,15 @@ class reversi_sys(reversi_core):
 
         # ゲーム設定
         # ループボードの時はめんどいのでokの値をFalseにして承認しない
-        self.ok:bool = True
+        self.ok: bool = True
 
         # user1であるかどうか
-        self.user1:bool = content["user1Id"] == self.br.MY_USER_ID
-        self.enemyid:str = content[f"user{2 if self.user1 else 1}Id"]
-        self.colour:bool
+        self.user1: bool = content["user1Id"] == self.br.MY_USER_ID
+        self.enemyid: str = content[f"user{2 if self.user1 else 1}Id"]
+        self.colour: bool
 
-        self.llotheo:bool = False
-        self.put_everywhere:bool = False
+        self.llotheo: bool = False
+        self.put_everywhere: bool = False
         # self.revstrange:bool = False
 
         # formは今のところ未対応みたい
@@ -69,7 +70,7 @@ class reversi_sys(reversi_core):
                     if bool((last := ds["logs"][-1])[1]) != self.colour:
                         # 最後の手が相手の場合、つまり今自分のターン。
                         # 処理書くのがめんどいのでinterfaceに流す
-                        await self.interface({"type":"log", "body":{"player":(not self.colour), "pos":last[3]}})
+                        await self.interface({"type": "log", "body": {"player": (not self.colour), "pos": last[3]}})
                     else:
                         # 最後の手が自分、つまり相手のターンなのでそのまま再現
                         self.set_point(last[3])
@@ -102,7 +103,9 @@ class reversi_sys(reversi_core):
                 # 自分がself.okじゃない
                 if info["body"][f"user{2 if self.user1 else 1}"]:
                     # 相手の合図の場合(分けてる理由は無限ループになるから)
-                    self.br.ws_send("channel", {"id":self.socketid, "type":"ready", "body":self.ok})
+                    self.br.ws_send("channel", {"id": self.socketid,
+                                                "type": "ready",
+                                                "body": self.ok})
         else:
             # ここからは対戦中あるいは対戦後に送られてくる
             if type_ == "ended":
@@ -149,16 +152,18 @@ class reversi_sys(reversi_core):
                     pts = self.search_point()
                     if len(pts) != 0:
                         if self.llotheo:
-                            mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
+                            mpts = [i for i in pts if i[0] == min(pts, key=lambda x: x[0])[0]]
                         else:
-                            mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                            mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                         pt = mpts[randint(0, len(mpts)-1)]
                         self.set_point(pos := self.postoyx(pt[1], rev=True))
-                        self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                        self.br.ws_send("channel", {"id": self.socketid,
+                                                    "type": "putStone",
+                                                    "body": {"pos": pos}})
             elif type_ == "log":
                 # 石が置かれたときに来る奴
                 body = info["body"]
-                if not (body["player"]==self.colour):
+                if not (body["player"] == self.colour):
                     # 相手の石置き情報だった場合、自分のターンになっている。
 
                     # まずは石を置く
@@ -172,23 +177,25 @@ class reversi_sys(reversi_core):
                         # V2
                         pts = self.search_point_v2()
                     elif self.RV < 4:
-                        ... # V3
-                    
+                        ...  # V3
+
                     if len(pts) != 0:
                         # 置ける場所が0個以上ある
 
                         # ロセオの場合、評価値を逆にして一番弱い手を使う。
                         if self.llotheo:
-                            mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
+                            mpts = [i for i in pts if i[0] == min(pts, key=lambda x: x[0])[0]]
                         else:
-                            mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                            mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
 
                         # 取れる手の中からランダムに選ぶ
                         pt = mpts[randint(0, len(mpts)-1)]
-                        
+
                         # 内部の盤面に石を置いてから、石を置いたことをwebsocketの送る
                         self.set_point(pos := self.postoyx(pt[1], rev=True))
-                        self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                        self.br.ws_send("channel", {"id": self.socketid,
+                                                    "type": "putStone",
+                                                    "body": {"pos": pos}})
 
                         # 相手が打てないときの処理
                         pt = self.search_point(True)
@@ -196,7 +203,7 @@ class reversi_sys(reversi_core):
                             # 相手が一個も打てない
                             if self.check_valid_koma() != 0:
                                 # 盤面に空きがある
-                                await self.interface({"type":"enemycantput"})
+                                await self.interface({"type": "enemycantput"})
                     elif self.put_everywhere:
                         # どこにも置けるモードの時
                         # 盤面の空きと座標をリスト化
@@ -207,8 +214,10 @@ class reversi_sys(reversi_core):
                                     canput.append((y, x))
                         if len(canput) != 0:
                             # 一個以上空きがある
-                            self.set_point(pos:=self.postoyx(canput[randint(0, len(canput)-1)], rev=True))
-                            self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                            self.set_point(pos := self.postoyx(canput[randint(0, len(canput)-1)], rev=True))
+                            self.br.ws_send("channel", {"id": self.socketid,
+                                                        "type": "putStone",
+                                                        "body": {"pos": pos}})
             elif type_ == "enemycantput":
                 # 相手が打てないとき
                 # 処理が速すぎてたまにバグるのでちょっと待つ
@@ -222,19 +231,21 @@ class reversi_sys(reversi_core):
                     # V2
                     pts = self.search_point_v2()
                 elif self.RV < 4:
-                    ... # V3
+                    ...  # V3
                 if len(pts) != 0:
                     if self.llotheo:
-                        mpts = [i for i in pts if i[0] == min(pts, key=lambda x:x[0])[0]]
+                        mpts = [i for i in pts if i[0] == min(pts, key=lambda x: x[0])[0]]
                     else:
-                        mpts = [i for i in pts if i[0] == max(pts, key=lambda x:x[0])[0]]
+                        mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                     pt = mpts[randint(0, len(mpts)-1)]
                     self.set_point(pos := self.postoyx(pt[1], rev=True))
-                    self.br.ws_send("channel", {"id":self.socketid, "type":"putStone", "body":{"pos":pos}})
+                    self.br.ws_send("channel", {"id": self.socketid,
+                                                "type": "putStone",
+                                                "body": {"pos": pos}})
                     pt = self.search_point(True)
                     if len(pt) == 0:
                         if self.check_valid_koma() != 0:
-                            await self.interface({"type":"enemycantput"})
+                            await self.interface({"type": "enemycantput"})
             else:
                 # まだ知らない`送られてくるもの`があるかも...?
                 print(info)

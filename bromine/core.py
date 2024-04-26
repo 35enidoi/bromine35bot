@@ -8,12 +8,13 @@ import random
 import os
 import logging
 
+
 class bromine35:
 
     class Explosion(Exception):
         pass
 
-    def __init__(self, instance, token, testmode:bool=False) -> None:
+    def __init__(self, instance, token, testmode: bool = False) -> None:
         self.TESTMODE = testmode
         self.logpath = "botlog.txt"
         self.V = 1.1
@@ -36,9 +37,9 @@ class bromine35:
         # logger作成
         logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
         level = logging.INFO
-        
+
         logging.basicConfig(format=logformat,
-                            filename=os.path.abspath(os.path.join(os.path.dirname(__file__),f'./{self.logpath}')),
+                            filename=os.path.abspath(os.path.join(os.path.dirname(__file__), f'./{self.logpath}')),
                             encoding="utf-8",
                             level=level)
 
@@ -122,9 +123,9 @@ class bromine35:
             except Exception as e:
                 self.logger.fatal(f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
-            
+
             finally:
-                if type(wsd) == asyncio.Task:
+                if type(wsd) is asyncio.Task:
                     wsd.cancel()
                     try:
                         await wsd
@@ -138,9 +139,14 @@ class bromine35:
                         pass
                     comebacks = None
 
-    def on_comebacker(self, id_:str=None, func=None, *, block:bool=False, rev:bool=False):
+    def on_comebacker(self,
+                      id_: str = None,
+                      func=None,
+                      *,
+                      block: bool = False,
+                      rev: bool = False):
         """comebackを作る
-        
+
         delの時はfuncいらない"""
         if id_ is None:
             id_ = uuid.uuid4()
@@ -157,38 +163,38 @@ class bromine35:
             raise ValueError("func_がコルーチンじゃないです。")
         self._pendings.append(func)
 
-    async def _ws_send_d(self, ws:websockets.WebSocketClientProtocol):
+    async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol):
         __PRIORITY_TYPES = ("connect", "disconnect")
         for i, v in self._channels.items():
-            await ws.send(json.dumps({        
-            "type": "connect",
-            "body": {
-                "channel": v[0],
-                "id": i,
-                "params": v[2]
-            }
+            await ws.send(json.dumps({
+                "type": "connect",
+                "body": {
+                    "channel": v[0],
+                    "id": i,
+                    "params": v[2]
+                }
             }))
         # queueの中身の初期化兼disconnect等を処理
         while not self._send_queue.empty():
             getter = await self._send_queue.get()
             if any(getter[0] is i for i in __PRIORITY_TYPES):
-                await ws.send(json.dumps({        
-                "type": getter[0],
-                "body": getter[1]
+                await ws.send(json.dumps({
+                    "type": getter[0],
+                    "body": getter[1]
                 }))
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self._send_queue.get()
-            await ws.send(json.dumps({        
-            "type": getter[0],
-            "body": getter[1]
+            await ws.send(json.dumps({
+                "type": getter[0],
+                "body": getter[1]
             }))
 
-    def ws_send(self, type_:str, body:dict) -> None:
+    def ws_send(self, type_: str, body: dict) -> None:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
         self._send_queue.put_nowait((type_, body))
 
-    def ws_connect(self, channel:str, func_, id_:str=None, **params) -> str:
+    def ws_connect(self, channel: str, func_, id_: str = None, **params) -> str:
         """channelに接続するときに使う関数 idを返す"""
         if not asyncio.iscoroutinefunction(func_):
             raise ValueError("func_がコルーチンじゃないです。")
@@ -196,30 +202,30 @@ class bromine35:
             id_ = str(uuid.uuid4())
         self._channels[id_] = (channel, func_, params)
         body = {
-            "channel" : channel,
-            "id" : id_,
-            "params" : params
+            "channel": channel,
+            "id": id_,
+            "params": params
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
         self.logger.info(f"connect channel:{channel}, id:{id_}")
         return id_
 
-    def ws_disconnect(self, id_:str) -> None:
+    def ws_disconnect(self, id_: str) -> None:
         """channelの接続解除に使う関数"""
         channel = self._channels.pop(id_)[0]
-        body = {"id":id_}
+        body = {"id": id_}
         self.ws_send("disconnect", body)
         self.logger.info(f"disconnect channel:{channel}, id:{id_}")
 
-    async def api_post(self, endp:str, wttime:int, **dicts) -> requests.Response:
+    async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         url = f"https://{self.INSTANCE}/api/"+endp
         dicts["i"] = self.TOKEN
         return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
 
     async def create_reaction(self, id, reaction, Instant=False):
         if not Instant:
-            await asyncio.sleep(random.randint(3,5))
+            await asyncio.sleep(random.randint(3, 5))
         try:
             await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
             self.logger.info(f"create reaction success:{reaction}")
@@ -234,12 +240,17 @@ class bromine35:
             self.logger.info(f"follow create fail:{e}")
 
     async def create_note(self, text, cw=None, direct=None, reply=None):
-        if direct == None:
+        if direct is None:
             notevisible = "public"
         else:
             notevisible = "specified"
         try:
-            await asyncio.to_thread(self.mk.notes_create, text, cw=cw,visibility=notevisible,visible_user_ids=direct,reply_id=reply)
+            await asyncio.to_thread(self.mk.notes_create,
+                                    text,
+                                    cw=cw,
+                                    visibility=notevisible,
+                                    visible_user_ids=direct,
+                                    reply_id=reply)
             self.logger.info("note create success")
         except Exception as e:
             self.logger.info(f"note create fail:{e}")

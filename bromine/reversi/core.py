@@ -1,17 +1,17 @@
 class reversi_core:
     """reversi core"""
     RC_VERSION = 2
-    banmen:list[list]
-    colour:bool
-    
-    def core_set_colour(self, colour_:bool):
+    banmen: list[list]
+    colour: bool
+
+    def core_set_colour(self, colour_: bool):
         """colourをsetするやつ"""
         self.colour = colour_
 
     def create_banmen(self, map):
         """盤面作成関数"""
         # 1を自分、2を相手とする
-        banmen:list[list] = []
+        banmen: list[list] = []
         for i, v in enumerate(map):
             banmen.append([])
             for r in list(v):
@@ -29,13 +29,13 @@ class reversi_core:
                     banmen[i].append(3)
         self.banmen = banmen
 
-    def set_point(self, pos:int, rev:bool=False):
+    def set_point(self, pos: int, rev: bool = False):
         """駒設置関数"""
         Y, X = self.postoyx(pos)
         self.banmen[Y][X] = (2 if rev else 1)
         for y, x in self.point_search(Y, X, rev):
             self.banmen[y][x] = (2 if rev else 1)
-    
+
     def search_point_v2(self) -> list[tuple[int, tuple[int, int]]]:
         """駒探す関数v2 一手読む"""
         # 最初の盤面保存
@@ -58,7 +58,7 @@ class reversi_core:
             tbeforebanmen = [[i for i in r] for r in self.banmen]
             if len(enemycanput := self.search_point(True)) != 0:
                 # 敵が置ける場所がある場合
-                epts = sum(map(lambda x:x[0], enemycanput))//2
+                epts = sum(map(lambda x: x[0], enemycanput))//2
                 # 辺、あるいは角に置けるか調べる
                 if any((self.check_side(i[1]) == 2) for i in enemycanput):
                     # 角に置けてしまうとき
@@ -80,7 +80,7 @@ class reversi_core:
                 self.set_point(self.postoyx(yx2, True), True)
                 if len(mecanput := self.search_point()):
                     # 一手後における場所があるとき
-                    cs = (sum(map(lambda x:x[0], mecanput))/len(mecanput))
+                    cs = (sum(map(lambda x: x[0], mecanput))/len(mecanput))
                     if any(self.check_side(i[1]) == 2 for i in mecanput):
                         # 角における
                         cs += 120
@@ -102,7 +102,7 @@ class reversi_core:
             self.banmen = [[i for i in r] for r in fbeforebanmen]
         return points
 
-    def search_point(self, rev:bool=False) -> list[tuple[int, tuple[int, int]]]:
+    def search_point(self, rev: bool = False) -> list[tuple[int, tuple[int, int]]]:
         """駒を置ける場所を探す関数"""
         points = []
 
@@ -115,14 +115,16 @@ class reversi_core:
                         points.append((point, (y, x)))
         return points
 
-    def point_search(self, y:int, x:int, rev:bool=False) -> tuple[tuple[int, int]]:
+    def point_search(self, y: int, x: int, rev: bool = False) -> tuple[tuple[int, int]]:
         """駒を置いた時に裏返せる場所の座標のタプルを返す関数"""
         #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
-        move = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+        move = ((1, 0),   (1, 1),  (0, 1),
+                (-1, 1),           (-1, 0),
+                (-1, -1), (0, -1), (1, -1))
         # 裏返せる場所のリスト
-        canrev:list[tuple[int, int]] = []
+        canrev: list[tuple[int, int]] = []
         for v, s in move:
-            revlist:list[tuple[int, int]] = []
+            revlist: list[tuple[int, int]] = []
 
             # komaが2(相手の駒)だったらrevlistにぶち込む
             # komaが1だったらrevlistに基づき裏返す
@@ -130,7 +132,7 @@ class reversi_core:
             try:
                 n = 1
                 while True:
-                    if (Y := y+v*n)<0 or (X := x+s*n)<0:
+                    if (Y := y+v*n) < 0 or (X := x+s*n) < 0:
                         break
 
                     if (koma := self.banmen[Y][X]) == (2 if rev else 1):
@@ -143,20 +145,22 @@ class reversi_core:
                         break
             except IndexError:
                 pass
-        
+
         return canrev
 
-    def check_side(self, yx:tuple[int, int]) -> int:
+    def check_side(self, yx: tuple[int, int]) -> int:
         """2で角、1で辺、0でなんもなし"""
         # CAUTION なんか挙動が変な気がする(気のせいだろうか)
 
         #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
-        sides = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
-        iswall:list[bool] = []
+        sides = ((1, 0),   (1, 1),  (0, 1),
+                 (-1, 1),           (-1, 0),
+                 (-1, -1), (0, -1), (1, -1))
+        iswall: list[bool] = []
         # 壁があるかを検索
         for i in sides:
             try:
-                if yx[0]+i[0]<0 or yx[1]+i[1]<0:
+                if yx[0]+i[0] < 0 or yx[1]+i[1] < 0:
                     iswall.append(True)
                 elif self.banmen[yx[0]+i[0]][yx[1]+i[1]] == 3:
                     iswall.append(True)
@@ -191,10 +195,12 @@ class reversi_core:
         # 角でも辺でもない、つまりなんもなし。
         return 0
 
-    def check_sumi(self, yx:tuple[int, int]) -> bool:
+    def check_sumi(self, yx: tuple[int, int]) -> bool:
         """隅(隣が角)にあるか確認する奴"""
         #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
-        sides = ((1,0),(1,1),(0,1),(-1,1),(-1,0),(-1,-1),(0,-1),(1,-1))
+        sides = ((1, 0),   (1, 1),  (0, 1),
+                 (-1, 1),           (-1, 0),
+                 (-1, -1), (0, -1), (1, -1))
 
         for i in sides:
             if self.check_side((yx[0]+i[0], yx[1]+i[1])) == 2:
@@ -209,13 +215,13 @@ class reversi_core:
             num += i.count(0)
         return num
 
-    def postoyx(self, pos, rev:bool=False):
+    def postoyx(self, pos, rev: bool = False):
         """pos to yx.
-        
+
         if rev, yx to pos.
-        
+
         開発環境が3.9.6なのでUnion(|)を使うのにimportが必要なので型推測書けない(importくらいさぼるな)"""
         yoko = len(self.banmen[0])
         if rev:
             return yoko*pos[0] + pos[1]
-        return pos//yoko, pos%yoko
+        return pos//yoko, pos % yoko

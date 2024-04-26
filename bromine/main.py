@@ -16,6 +16,7 @@ br = core.bromine35(instance, token)
 
 notes_queue = asyncio.Queue()
 
+
 async def local_speed_watch():
     interval = 61
     while True:
@@ -33,17 +34,25 @@ async def local_speed_watch():
         notetext += "\n リノートの数;{}個 {}毎秒\n インターバル;{}分".format(re_notes, round(re_notes/(60*interval), 2), interval)
         await br.create_note(notetext)
 
+
 async def cpuwatch():
     while True:
         cpu_temp = []
         for _ in range(120):
             cpu_temp += await cpuwatch_short()
-        print("watched cpu!\n{} {} {:.2f}".format(max(cpu_temp),min(cpu_temp),sum(cpu_temp)/len(cpu_temp)))
-        await br.create_note(text="ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(max(cpu_temp),min(cpu_temp),sum(cpu_temp)/len(cpu_temp)), direct=["9gwek19h00"])
+        print("watched cpu!\n{} {} {:.2f}".format(max(cpu_temp),
+                                                  min(cpu_temp),
+                                                  sum(cpu_temp)/len(cpu_temp)))
+        await br.create_note(
+            text="ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(
+                                                                        max(cpu_temp),
+                                                                        min(cpu_temp),
+                                                                        sum(cpu_temp)/len(cpu_temp)), direct=["9gwek19h00"])
 
 # cpuwatchは今使ってない
 br.add_pending(local_speed_watch)
 # br.add_pending(cpuwatch)
+
 
 async def detect_not_follow():
     try:
@@ -63,9 +72,10 @@ async def detect_not_follow():
 
 br.on_comebacker(func=detect_not_follow)
 
-LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:","じょぱ",
-                     ":_ma::_lu::_a::_wave:","まぅあ～",
+LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:", "じょぱ",
+                     ":_ma::_lu::_a::_wave:", "まぅあ～",
                      ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
+
 
 async def onnote(note):
     note = note["body"]
@@ -84,6 +94,7 @@ async def onnote(note):
     else:
         await notes_queue.put("note")
 
+
 async def onnotify(note):
     print("notification coming")
     if note["type"] == "followed":
@@ -100,11 +111,11 @@ async def onnotify(note):
                         visible = [note["body"]["userId"]]
                     else:
                         visible = None
-                    asyncio.create_task(cpuwatch_short(note["body"]["id"],visible))
+                    asyncio.create_task(cpuwatch_short(note["body"]["id"], visible))
                     return
                 elif "explosion" in note["body"]["text"]:
                     print("explosion!!!")
-                    await br.create_reaction(note["body"]["id"],":explosion:",Instant=True)
+                    await br.create_reaction(note["body"]["id"], ":explosion:", Instant=True)
                     if not br.TESTMODE:
                         await br.create_note("bot、爆発します。:explosion:")
                     br.explosion = True
@@ -114,7 +125,7 @@ async def onnotify(note):
                     print(note["body"]["text"].split(" ")[-1])
                     res = await br.api_post("reversi/match", 30, userId=str(note["body"]["text"].split("\n")[-1]))
                     print(res.status_code)
-                    asyncio.create_task(br.create_reaction(note["body"]["id"],"🆗",Instant=True))
+                    asyncio.create_task(br.create_reaction(note["body"]["id"], "🆗", Instant=True))
                     return
         if note["body"]["user"]["isBot"]:
             print("mention bot detected")
@@ -122,16 +133,19 @@ async def onnotify(note):
         elif "ping" in note["body"]["text"]:
             print("ping coming")
             if note["body"]["visibility"] == "specified":
-                asyncio.create_task(br.create_note("bomb!:explosion:", reply=note["body"]["id"], direct=[note["body"]["userId"]]))
+                asyncio.create_task(br.create_note("bomb!:explosion:",
+                                                   reply=note["body"]["id"],
+                                                   direct=[note["body"]["userId"]]))
             else:
                 asyncio.create_task(br.create_note("bomb!:explosion:", reply=note["body"]["id"]))
-            asyncio.create_task(br.create_reaction(note["body"]["id"],"💣",Instant=True))
+            asyncio.create_task(br.create_reaction(note["body"]["id"], "💣", Instant=True))
         elif "怪文書" in note["body"]["text"]:
             print("kaibunsyo coming")
             asyncio.create_task(kaibunsyo(note["body"]["id"]))
         else:
             print("mention coming")
-            asyncio.create_task(br.create_reaction(note["body"]["id"],"❤️"))
+            asyncio.create_task(br.create_reaction(note["body"]["id"], "❤️"))
+
 
 async def onreversi(info):
     if info["type"] == "invited":
@@ -169,29 +183,38 @@ br.ws_connect("main", onnotify)
 br.ws_connect("localTimeline", onnote)
 br.ws_connect("reversi", onreversi)
 
+
 async def kaibunsyo(noteid):
     kaibunsyo = ""
     try:
-        notes = await asyncio.to_thread(br.mk.notes_local_timeline, randint(5,15))
+        notes = await asyncio.to_thread(br.mk.notes_local_timeline, randint(5, 15))
     except exceptions.MisskeyAPIException:
         return
     for i in notes:
         if i["cw"] is not None:
             pass
         elif i["text"] is not None:
-            kaibunsyo += i["text"].replace("\n", "")[0:randint(0,len(i["text"]) if len(i["text"]) <= 15 else 15)]
-    await br.create_note(kaibunsyo.replace("#", "＃").replace("@","*"),reply=noteid)
+            kaibunsyo += i["text"].replace("\n", "")[0:randint(0, len(i["text"]) if len(i["text"]) <= 15 else 15)]
+    await br.create_note(kaibunsyo.replace("#", "＃").replace("@", "*"), reply=noteid)
+
 
 async def cpuwatch_short(reply=None, directs=None):
     cpu_temp = []
-    if reply != None:
-        await br.create_reaction(reply,":murakamisan_nurukopoppu_tyottotoorimasuyo2:")
+    if reply is not None:
+        await br.create_reaction(reply, ":murakamisan_nurukopoppu_tyottotoorimasuyo2:")
     for _ in range(60):
-        cpu_temp.append(float((subprocess.run("vcgencmd measure_temp", shell=True, stdin=subprocess.PIPE, stdout=subprocess.PIPE, text=True).stdout.split("="))[1].replace("\n", "").replace("'C", "")))
+        cpu_temp.append(float((subprocess.run("vcgencmd measure_temp",
+                                              shell=True,
+                                              stdin=subprocess.PIPE,
+                                              stdout=subprocess.PIPE,
+                                              text=True).stdout.split("="))[1].replace("\n", "").replace("'C", "")))
         await asyncio.sleep(1)
-    if reply != None:
-        await br.create_reaction(reply,":blobcat_ok_sign:")
-        await br.create_note("ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(max(cpu_temp),min(cpu_temp),sum(cpu_temp)/len(cpu_temp)),reply=reply,direct=directs)
+    if reply is not None:
+        await br.create_reaction(reply, ":blobcat_ok_sign:")
+        await br.create_note("ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(
+            max(cpu_temp),
+            min(cpu_temp),
+            sum(cpu_temp)/len(cpu_temp)), reply=reply, direct=directs)
     else:
         return cpu_temp
 
@@ -199,6 +222,7 @@ async def cpuwatch_short(reply=None, directs=None):
 async def setup():
     await br.create_note("bot、動きます。:ablobblewobble:")
     await br.create_reaction("9iisgwj3rf", "✅")
+
 
 async def fin(yoteigai):
     if yoteigai:
@@ -222,6 +246,7 @@ def main():
     finally:
         if not br.TESTMODE:
             asyncio.run(fin(isyoteigai))
+
 
 if __name__ == "__main__":
     main()
