@@ -1,5 +1,6 @@
 from random import randint
 import asyncio
+
 from .core import reversi_core
 
 

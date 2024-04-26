@@ -1,9 +1,10 @@
 import os
 import subprocess
 import asyncio
-from misskey import exceptions
 from uuid import uuid4
 from random import randint
+
+from misskey import exceptions
 
 import core
 from reversi import reversi_sys
@@ -15,6 +16,10 @@ HOST_USER_ID = "9gwek19h00"
 br = core.bromine35(instance, token)
 
 notes_queue = asyncio.Queue()
+
+LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:", "じょぱ",
+                     ":_ma::_lu::_a::_wave:", "まぅあ～",
+                     ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
 
 async def local_speed_watch():
@@ -49,10 +54,6 @@ async def cpuwatch():
                                                                         min(cpu_temp),
                                                                         sum(cpu_temp)/len(cpu_temp)), direct=["9gwek19h00"])
 
-# cpuwatchは今使ってない
-br.add_pending(local_speed_watch)
-# br.add_pending(cpuwatch)
-
 
 async def detect_not_follow():
     try:
@@ -69,12 +70,6 @@ async def detect_not_follow():
         print(f"detect not follow error:{e}")
         await asyncio.sleep(10)
         asyncio.create_task(detect_not_follow)
-
-br.on_comebacker(func=detect_not_follow)
-
-LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:", "じょぱ",
-                     ":_ma::_lu::_a::_wave:", "まぅあ～",
-                     ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
 
 async def onnote(note):
@@ -179,10 +174,6 @@ async def onreversi(info):
         print("reversi anything comming")
         print(info)
 
-br.ws_connect("main", onnotify)
-br.ws_connect("localTimeline", onnote)
-br.ws_connect("reversi", onreversi)
-
 
 async def kaibunsyo(noteid):
     kaibunsyo = ""
@@ -247,6 +238,14 @@ def main():
         if not br.TESTMODE:
             asyncio.run(fin(isyoteigai))
 
+
+# cpuwatchは今使ってない
+br.add_pending(local_speed_watch)
+# br.add_pending(cpuwatch)
+br.on_comebacker(func=detect_not_follow)
+br.ws_connect("main", onnotify)
+br.ws_connect("localTimeline", onnote)
+br.ws_connect("reversi", onreversi)
 
 if __name__ == "__main__":
     main()
