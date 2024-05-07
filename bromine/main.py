@@ -3,6 +3,7 @@ import subprocess
 import asyncio
 from uuid import uuid4
 from random import randint
+from datetime import timedelta
 
 from misskey import exceptions
 
@@ -22,6 +23,43 @@ LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:", "じょぱ",
                      ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
 
+class zyanken_system:
+    """じゃんけんしすてむ"""
+    def __init__(self, id_: str, fin_time_: int) -> None:
+        self.noteid = id_
+        self.fintime = fin_time_
+        choice = randint(0, 2)
+        choices = ("グー", "チョキ", "パー")
+        self.zyanken_txt = f"じゃんけんぽん！\n私は{choices[choice]}を出したぞ！！！"
+
+    async def fin_timer(self):
+        await asyncio.sleep(self.fintime)
+        await asyncio.to_thread(br.safe_wrap_retbool,
+                                br.mk.notes_create,
+                                text=self.zyanken_txt,
+                                renote_id=self.noteid)
+
+
+async def zyanken_starter():
+    """じゃんけんするのを開始する奴"""
+    interval = 50
+    randominterval = True
+    zyanken_start_mes = "じゃんけんするぞ:blobcat_mudamudamuda:"
+    fintime = 60*5
+    random_haba = 15
+    zksys: zyanken_system
+    while True:
+        await asyncio.sleep(60*(interval + (randint(0, random_haba) if randominterval else 0)))
+        note = await asyncio.to_thread(br.safe_wrap,
+                                       br.mk.notes_create,
+                                       text=zyanken_start_mes,
+                                       poll_choices=("グー", "チョキ", "パー"),
+                                       poll_expired_after=timedelta(seconds=fintime))
+        if note is not None:
+            zksys = zyanken_system(note["createdNote"]["id"], fintime)
+            await zksys.fin_timer()
+
+
 async def local_speed_watch():
     interval = 61
     while True:
@@ -33,8 +71,8 @@ async def local_speed_watch():
                 notes += 1
             else:
                 re_notes += 1
-        print(f"local speed notes;{notes}, renotes;{re_notes}")
-        print("per second notes;{} re_notes;{}".format(round(notes/(60*interval), 2), round(re_notes/(60*interval), 2)))
+        # print(f"local speed notes;{notes}, renotes;{re_notes}")
+        # print("per second notes;{} re_notes;{}".format(round(notes/(60*interval), 2), round(re_notes/(60*interval), 2)))
         notetext = "ローカルの流速です:eyes_fidgeting:\n ノートの数;{}個 {}毎秒".format(notes, round(notes/(60*interval), 2))
         notetext += "\n リノートの数;{}個 {}毎秒\n インターバル;{}分".format(re_notes, round(re_notes/(60*interval), 2), interval)
         await br.create_note(notetext)
@@ -240,6 +278,7 @@ def main():
 
 
 # cpuwatchは今使ってない
+br.add_pending(zyanken_starter)
 br.add_pending(local_speed_watch)
 # br.add_pending(cpuwatch)
 br.on_comebacker(func=detect_not_follow)

@@ -4,6 +4,7 @@ import uuid
 import random
 import os
 import logging
+from typing import Callable
 
 from misskey import Misskey
 import requests
@@ -223,6 +224,24 @@ class bromine35:
         url = f"https://{self.INSTANCE}/api/"+endp
         dicts["i"] = self.TOKEN
         return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
+
+    def safe_wrap(self, func_: Callable, *arg, **kargs):
+        try:
+            ret = func_(*arg, **kargs)
+            self.logger.info(f"call {func_.__name__} success.")
+            return ret
+        except Exception:
+            self.logger.info(f"call {func_.__name__} fail.")
+            return None
+
+    def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
+        try:
+            _ = func_(*arg, **kargs)
+            self.logger.info(f"call {func_.__name__} success.")
+            return True
+        except Exception:
+            self.logger.info(f"call {func_.__name__} fail.")
+            return False
 
     async def create_reaction(self, id, reaction, Instant=False):
         if not Instant:
