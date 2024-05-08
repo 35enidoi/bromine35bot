@@ -42,11 +42,11 @@ class zyanken_system:
 
 async def zyanken_starter():
     """じゃんけんするのを開始する奴"""
-    interval = 50
+    interval = 120
     randominterval = True
     zyanken_start_mes = "じゃんけんするぞ:blobcat_mudamudamuda:"
     fintime = 60*5
-    random_haba = 15
+    random_haba = 50
     zksys: zyanken_system
     while True:
         await asyncio.sleep(60*(interval + (randint(0, random_haba) if randominterval else 0)))
