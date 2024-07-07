@@ -54,8 +54,6 @@ class bromine35:
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
         try:
             await asyncio.create_task(self._runner())
-        except Exception as e:
-            raise e
         finally:
             other.cancel()
             try:
