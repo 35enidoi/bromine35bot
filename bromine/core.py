@@ -16,8 +16,7 @@ class bromine35:
     class Explosion(Exception):
         pass
 
-    def __init__(self, instance, token, testmode: bool = False) -> None:
-        self.TESTMODE = testmode
+    def __init__(self, instance, token) -> None:
         self.logpath = "botlog.txt"
         self.V = 1.1
         # データ構造

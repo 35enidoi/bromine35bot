@@ -10,6 +10,8 @@ from misskey import exceptions
 import core
 from reversi import reversi_sys
 
+
+TESTMODE = False
 instance = "misskey.io"
 token = os.environ["MISSKEY_BOT_TOKEN"]
 HOST_USER_ID = "9gwek19h00"
@@ -149,7 +151,7 @@ async def onnotify(note):
                 elif "explosion" in note["body"]["text"]:
                     print("explosion!!!")
                     await br.create_reaction(note["body"]["id"], ":explosion:", Instant=True)
-                    if not br.TESTMODE:
+                    if not TESTMODE:
                         await br.create_note("bot、爆発します。:explosion:")
                     br.explosion = True
                     return
@@ -182,14 +184,14 @@ async def onnotify(note):
 
 async def onreversi(info):
     if info["type"] == "invited":
-        if br.TESTMODE:
+        if TESTMODE:
             print("invite!")
         if not (userid := info["body"]["user"]["id"]) in reversi_sys.playing_user_list:
             # プレイ中のuseridのリストにぶち込む
             reversi_sys.playing_user_list.append(userid)
             res = await br.api_post("reversi/match", 30, userId=userid)
             id_ = str(uuid4())
-            rv = reversi_sys(br, res.json(), id_)
+            rv = reversi_sys(br, res.json(), id_, TESTMODE)
             br.on_comebacker(rv.socketid, rv.comeback, block=True)
             br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
             # フォームは今のところ未対応みたい
@@ -199,13 +201,13 @@ async def onreversi(info):
             # br.ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
     elif info["type"] == "matched":
         game = info["body"]["game"]
-        if br.TESTMODE:
+        if TESTMODE:
             print("matched!")
         if not (userid := game[f"user{2 if game['user1Id'] == br.MY_USER_ID else 1}"]["id"]) in reversi_sys.playing_user_list:
             # プレイ中のuseridのリストにぶち込む
             reversi_sys.playing_user_list.append(userid)
             id_ = str(uuid4())
-            rv = reversi_sys(br, game, id_)
+            rv = reversi_sys(br, game, id_, TESTMODE)
             br.on_comebacker(rv.socketid, rv.comeback, block=True)
             br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
     else:
@@ -261,11 +263,11 @@ async def fin(yoteigai):
     await br.create_reaction("9iisgwj3rf", "❌", Instant=True)
 
 
-def main():
-    if not br.TESTMODE:
-        asyncio.run(setup())
+async def main():
+    if not TESTMODE:
+        await setup()
     try:
-        asyncio.run(br.main())
+        await br.main()
     except (KeyboardInterrupt, br.Explosion):
         isyoteigai = False
     except Exception:
@@ -273,8 +275,8 @@ def main():
     else:
         isyoteigai = False
     finally:
-        if not br.TESTMODE:
-            asyncio.run(fin(isyoteigai))
+        if not TESTMODE:
+            await fin(isyoteigai)
 
 
 # cpuwatchは今使ってない
@@ -287,4 +289,4 @@ br.ws_connect("localTimeline", onnote)
 br.ws_connect("reversi", onreversi)
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

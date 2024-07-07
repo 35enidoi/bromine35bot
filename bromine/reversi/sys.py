@@ -1,7 +1,8 @@
 from random import randint
 import asyncio
 
-from .core import reversi_core
+from bromine.reversi.core import reversi_core
+from bromine.core import bromine35
 
 
 class reversi_sys(reversi_core):
@@ -9,8 +10,10 @@ class reversi_sys(reversi_core):
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
-    def __init__(self, br, content: dict, socketid: str) -> None:
+    def __init__(self, br: bromine35, content: dict, socketid: str, testmode: bool) -> None:
         """Reversi system init"""
+        # testmodeの保存
+        self.TESTMODE = testmode
         # reversi version
         self.RV = reversi_core.RC_VERSION
         # bromine35の保存
@@ -47,7 +50,7 @@ class reversi_sys(reversi_core):
         # self.br.ws_send("channel", {id:self.socketid, type:"init-form", body:form})
 
         # テストモードならリバーシシステムが準備完了なことを言う
-        if self.br.TESTMODE:
+        if self.TESTMODE:
             print("reversi system on ready", f"gameid:{self.game_id}")
 
     async def comeback(self):
@@ -113,7 +116,7 @@ class reversi_sys(reversi_core):
                 # 対戦終了時に送られる
                 print("finish reversi gameid:", self.game_id)
                 await self.disconnect()
-                if not self.br.TESTMODE:
+                if not self.TESTMODE:
                     pass
                     # url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                     # enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
@@ -137,7 +140,7 @@ class reversi_sys(reversi_core):
                 self.core_set_colour(self.colour)
                 self.create_banmen(info["body"]["game"]["map"])
 
-                if self.br.TESTMODE:
+                if self.TESTMODE:
                     print("どこでも置ける:", self.put_everywhere)
                     print("ロセオ:", self.llotheo)
                     print("色:", self.colour)
