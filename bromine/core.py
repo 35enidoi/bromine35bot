@@ -4,7 +4,7 @@ import uuid
 import random
 import os
 import logging
-from typing import Callable
+from typing import Callable, Coroutine, Any, NoReturn
 
 from misskey import Misskey
 import requests
@@ -12,7 +12,7 @@ import websockets
 
 
 class Bromine:
-    def __init__(self, instance, token) -> None:
+    def __init__(self, instance: str, token: str) -> None:
         self.logpath = "botlog.txt"
         self.V = 1.1
         # データ構造
@@ -149,7 +149,7 @@ class Bromine:
             self._on_comeback[id_] = (block, func)
         return id_
 
-    def add_pending(self, func):
+    def add_pending(self, func: Coroutine[Any, Any, NoReturn]):
         if not asyncio.iscoroutinefunction(func):
             raise ValueError("func_がコルーチンじゃないです。")
         self._pendings.append(func)
@@ -185,7 +185,7 @@ class Bromine:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
         self._send_queue.put_nowait((type_, body))
 
-    def ws_connect(self, channel: str, func_, id_: str = None, **params) -> str:
+    def ws_connect(self, channel: str, func_: Coroutine[Any, Any, None], id_: str = None, **params) -> str:
         """channelに接続するときに使う関数 idを返す"""
         if not asyncio.iscoroutinefunction(func_):
             raise ValueError("func_がコルーチンじゃないです。")
