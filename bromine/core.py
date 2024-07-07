@@ -11,11 +11,7 @@ import requests
 import websockets
 
 
-class bromine35:
-
-    class Explosion(Exception):
-        pass
-
+class Bromine:
     def __init__(self, instance, token) -> None:
         self.logpath = "botlog.txt"
         self.V = 1.1
@@ -32,8 +28,6 @@ class bromine35:
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
         self.MY_USER_ID = self.mk.i()["id"]
-
-        self.explosion = False
 
         # logger作成
         logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
@@ -101,8 +95,6 @@ class bromine35:
                     self.logger.info("websocket connect success")
                     while True:
                         data = json.loads(await ws.recv())
-                        if self.explosion:
-                            raise self.Explosion("BOOM!!!!!!")
                         if data['type'] == 'channel':
                             for i, v in self._channels.items():
                                 if data["body"]["id"] == i:

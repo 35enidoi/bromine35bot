@@ -1,8 +1,7 @@
 from random import randint
 import asyncio
 
-from bromine.reversi.core import reversi_core
-from bromine.core import bromine35
+from .core import reversi_core
 
 
 class reversi_sys(reversi_core):
@@ -10,7 +9,7 @@ class reversi_sys(reversi_core):
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
-    def __init__(self, br: bromine35, content: dict, socketid: str, testmode: bool) -> None:
+    def __init__(self, br, content: dict, socketid: str, testmode: bool) -> None:
         """Reversi system init"""
         # testmodeの保存
         self.TESTMODE = testmode
