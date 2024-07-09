@@ -288,6 +288,8 @@ async def main():
     finally:
         if TESTMODE:
             print("Fin...")
+        elif bakuha_event.is_set():
+            print("bakuhasareta...")
         else:
             await brm.fin(isyoteigai)
 
