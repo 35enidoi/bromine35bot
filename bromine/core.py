@@ -4,7 +4,7 @@ import uuid
 import random
 import os
 import logging
-from typing import Callable, Coroutine, Any, NoReturn
+from typing import Any, Awaitable, Callable, NoReturn
 
 from misskey import Misskey
 import requests
@@ -15,13 +15,13 @@ class Bromine:
     def __init__(self, instance: str, token: str) -> None:
         self.logpath = "botlog.txt"
         self.V = 1.1
-        # データ構造
-        # uuid4 : (接続するチャンネル, 受け取り関数(async), params)
-        # dict(uuid4 : tuple(channel, coroutinefunc, params))
-        self._channels = {}
-        self._pendings = []
-        self._on_comeback = {}
-        self._ws_add_list = []
+
+        # uuid:[channelname, awaitablefunc, params]
+        self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Awaitable[None]], dict[str, Any]]] = {}
+        # list[awaitablefunc]
+        self._pendings: list[Callable[[None], Awaitable[NoReturn]]] = []
+        # uuid:[isblock, awaitablefunc]
+        self._on_comeback: dict[bool, Callable[[], Awaitable[None]]] = {}
 
         self.INSTANCE = instance
         self.TOKEN = token
@@ -40,7 +40,7 @@ class Bromine:
 
         self.logger = logging.getLogger("bromine35bot")
 
-    async def main(self):
+    async def main(self) -> None:
         self.logger.warning("bot start")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
@@ -55,7 +55,7 @@ class Bromine:
                 print("catch")
             self.logger.warning("bot stop")
 
-    async def _connect_check(self):
+    async def _connect_check(self) -> None:
         while True:
             try:
                 async with websockets.connect(self.WS_URL):
@@ -76,7 +76,7 @@ class Bromine:
                 break
         await asyncio.sleep(2)
 
-    async def _runner(self):
+    async def _runner(self) -> NoReturn:
         # この変数は最初に接続失敗すると未定義になるから保険のため
         wsd = None
         comebacks = None
@@ -132,10 +132,10 @@ class Bromine:
 
     def on_comebacker(self,
                       id_: str = None,
-                      func=None,
+                      func: Callable[[], Awaitable[None]] = None,
                       *,
                       block: bool = False,
-                      rev: bool = False):
+                      rev: bool = False) -> str:
         """comebackを作る
 
         delの時はfuncいらない"""
@@ -149,12 +149,12 @@ class Bromine:
             self._on_comeback[id_] = (block, func)
         return id_
 
-    def add_pending(self, func: Coroutine[Any, Any, NoReturn]):
+    def add_pending(self, func: Callable[[], Awaitable[NoReturn]]) -> None:
         if not asyncio.iscoroutinefunction(func):
             raise ValueError("func_がコルーチンじゃないです。")
         self._pendings.append(func)
 
-    async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol):
+    async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         __PRIORITY_TYPES = ("connect", "disconnect")
         for i, v in self._channels.items():
             await ws.send(json.dumps({
@@ -185,7 +185,7 @@ class Bromine:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
         self._send_queue.put_nowait((type_, body))
 
-    def ws_connect(self, channel: str, func_: Coroutine[Any, Any, None], id_: str = None, **params) -> str:
+    def ws_connect(self, channel: str, func_: Callable[[dict[str, Any]], Awaitable[None]], id_: str = None, **params) -> str:
         """channelに接続するときに使う関数 idを返す"""
         if not asyncio.iscoroutinefunction(func_):
             raise ValueError("func_がコルーチンじゃないです。")
