@@ -4,7 +4,7 @@ import uuid
 import random
 import os
 import logging
-from typing import Any, Awaitable, Callable, NoReturn
+from typing import Any, Awaitable, Callable, NoReturn, Optional
 
 from misskey import Misskey
 import requests
@@ -131,7 +131,7 @@ class Bromine:
                     comebacks = None
 
     def on_comebacker(self,
-                      id_: str = None,
+                      id_: Optional[str] = None,
                       func: Callable[[], Awaitable[None]] = None,
                       *,
                       block: bool = False,
@@ -145,7 +145,7 @@ class Bromine:
             del self._on_comeback[id_]
         else:
             if not asyncio.iscoroutinefunction(func):
-                raise ValueError("与える関数はコルーチンでなければなりません")
+                raise ValueError("関数はコルーチンでなければなりません")
             self._on_comeback[id_] = (block, func)
         return id_
 
@@ -185,7 +185,11 @@ class Bromine:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
         self._send_queue.put_nowait((type_, body))
 
-    def ws_connect(self, channel: str, func_: Callable[[dict[str, Any]], Awaitable[None]], id_: str = None, **params) -> str:
+    def ws_connect(self,
+                   channel: str,
+                   func_: Callable[[dict[str, Any]], Awaitable[None]],
+                   id_: Optional[str] = None,
+                   **params) -> str:
         """channelに接続するときに使う関数 idを返す"""
         if not asyncio.iscoroutinefunction(func_):
             raise ValueError("func_がコルーチンじゃないです。")
