@@ -130,24 +130,18 @@ class Bromine:
                         pass
                     comebacks = None
 
-    def on_comebacker(self,
-                      id_: Optional[str] = None,
-                      func: Callable[[], Awaitable[None]] = None,
-                      *,
-                      block: bool = False,
-                      rev: bool = False) -> str:
-        """comebackを作る
-
-        delの時はfuncいらない"""
+    def add_comeback(self, func: Callable[[], Awaitable[None]], id_: Optional[str] = None, block: bool = False) -> str:
+        """comebackを作る"""
         if id_ is None:
             id_ = uuid.uuid4()
-        if rev:
-            del self._on_comeback[id_]
-        else:
-            if not asyncio.iscoroutinefunction(func):
-                raise ValueError("関数はコルーチンでなければなりません")
-            self._on_comeback[id_] = (block, func)
+        if not asyncio.iscoroutinefunction(func):
+            raise ValueError("関数がコルーチンでなければなりません。")
+        self._on_comeback[id_] = (block, func)
         return id_
+
+    def del_comeback(self, id_: str) -> None:
+        """comeback消す奴"""
+        self._on_comeback.pop(id_)
 
     def add_pending(self, func: Callable[[], Awaitable[NoReturn]]) -> None:
         if not asyncio.iscoroutinefunction(func):

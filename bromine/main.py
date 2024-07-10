@@ -48,7 +48,7 @@ class Bromine35:
         br.add_pending(self.zyanken_starter)
         br.add_pending(self.local_speed_watch)
         # br.add_pending(cpuwatch)
-        br.on_comebacker(func=self.detect_not_follow)
+        br.add_comeback(self.detect_not_follow)
         br.ws_connect("main", self.onnotify)
         br.ws_connect("localTimeline", self.onnote)
         br.ws_connect("reversi", self.onreversi)
@@ -216,7 +216,7 @@ class Bromine35:
                 res = await self.br.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid4())
                 rv = reversi_sys(self.br, res.json(), id_, TESTMODE)
-                self.br.on_comebacker(rv.socketid, rv.comeback, block=True)
+                self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
                 # フォームは今のところ未対応みたい
 
@@ -233,7 +233,7 @@ class Bromine35:
                 reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid4())
                 rv = reversi_sys(self.br, game, id_, TESTMODE)
-                self.br.on_comebacker(rv.socketid, rv.comeback, block=True)
+                self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
         else:
             print("reversi anything comming")

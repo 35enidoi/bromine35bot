@@ -259,5 +259,5 @@ class reversi_sys(reversi_core):
         self.playing_user_list.remove(self.enemyid)
 
         # comebackから削除してチャンネルから切断する
-        self.br.on_comebacker(self.socketid, rev=True)
+        self.br.del_comeback(self.socketid)
         self.br.ws_disconnect(self.socketid)
