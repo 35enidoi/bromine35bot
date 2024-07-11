@@ -12,6 +12,7 @@ from reversi import reversi_sys
 
 
 TESTMODE = False
+MY_USER_ID = "9iipvideci"
 instance = "misskey.io"
 token = os.environ["MISSKEY_BOT_TOKEN"]
 HOST_USER_ID = "9gwek19h00"
@@ -125,7 +126,7 @@ class Bromine35:
 
     async def detect_not_follow(self):
         try:
-            followers = await asyncio.to_thread(self.br.mk.users_followers, user_id=self.br.MY_USER_ID)
+            followers = await asyncio.to_thread(self.br.mk.users_followers, user_id=MY_USER_ID)
             not_in = []
             for i in followers:
                 if not i["follower"]["isFollowing"] and not i["follower"]["hasPendingFollowRequestFromYou"]:
@@ -215,7 +216,7 @@ class Bromine35:
                 reversi_sys.playing_user_list.append(userid)
                 res = await self.br.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid4())
-                rv = reversi_sys(self.br, res.json(), id_, TESTMODE)
+                rv = reversi_sys(self.br, res.json(), id_, TESTMODE, MY_USER_ID)
                 self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
                 # フォームは今のところ未対応みたい
@@ -225,14 +226,14 @@ class Bromine35:
                 # self.br.ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
         elif info["type"] == "matched":
             game = info["body"]["game"]
-            userid = game[f"user{2 if game['user1Id'] == self.br.MY_USER_ID else 1}"]["id"]
+            userid = game[f"user{2 if game['user1Id'] == MY_USER_ID else 1}"]["id"]
             if TESTMODE:
                 print("matched!")
             if userid not in reversi_sys.playing_user_list:
                 # プレイ中のuseridのリストにぶち込む
                 reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid4())
-                rv = reversi_sys(self.br, game, id_, TESTMODE)
+                rv = reversi_sys(self.br, game, id_, TESTMODE, MY_USER_ID)
                 self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
         else:

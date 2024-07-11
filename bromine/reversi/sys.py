@@ -9,12 +9,14 @@ class reversi_sys(reversi_core):
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
-    def __init__(self, br, content: dict, socketid: str, testmode: bool) -> None:
+    def __init__(self, br, content: dict, socketid: str, testmode: bool, userid: str) -> None:
         """Reversi system init"""
         # testmodeの保存
         self.TESTMODE = testmode
         # reversi version
         self.RV = reversi_core.RC_VERSION
+        # useridの保存
+        self.MY_USER_ID = userid
         # bromine35の保存
         self.br = br
         # id保存
@@ -26,7 +28,7 @@ class reversi_sys(reversi_core):
         self.ok: bool = True
 
         # user1であるかどうか
-        self.user1: bool = content["user1Id"] == self.br.MY_USER_ID
+        self.user1: bool = content["user1Id"] == self.MY_USER_ID
         self.enemyid: str = content[f"user{2 if self.user1 else 1}Id"]
         self.colour: bool
 
@@ -120,7 +122,7 @@ class reversi_sys(reversi_core):
                     # url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                     # enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
                     # if info["body"]["game"].get("winnerId"):
-                    #     if info["body"]["game"]["winnerId"] == self.br.MY_USER_ID:
+                    #     if info["body"]["game"]["winnerId"] == self.MY_USER_ID:
                     #         txt = "に勝ちました:nullcatchan_nope:"
                     #     else:
                     #         txt = "に負けました:oyoo:"

@@ -27,7 +27,6 @@ class Bromine:
         self.TOKEN = token
         self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
-        self.MY_USER_ID = self.mk.i()["id"]
 
         # logger作成
         logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
