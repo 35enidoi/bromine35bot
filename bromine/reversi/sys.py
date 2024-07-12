@@ -9,16 +9,16 @@ class reversi_sys(reversi_core):
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
-    def __init__(self, br, content: dict, socketid: str, testmode: bool, userid: str) -> None:
+    def __init__(self, brm, content: dict, socketid: str) -> None:
         """Reversi system init"""
         # testmodeの保存
-        self.TESTMODE = testmode
+        self.TESTMODE = brm.TESTMODE
         # reversi version
         self.RV = reversi_core.RC_VERSION
         # useridの保存
-        self.MY_USER_ID = userid
-        # bromine35の保存
-        self.br = br
+        self.MY_USER_ID = brm.MY_USER_ID
+        # bromineの保存
+        self.br = brm.br
         # id保存
         self.game_id = content["id"]
         self.socketid = socketid
