@@ -4,7 +4,7 @@ import uuid
 import random
 import os
 import logging
-from typing import Any, Awaitable, Callable, NoReturn, Optional
+from typing import Any, Awaitable, Callable, NoReturn, Optional, Union
 
 from misskey import Misskey
 import requests
@@ -76,14 +76,16 @@ class Bromine:
         await asyncio.sleep(2)
 
     async def _runner(self) -> NoReturn:
-        # この変数は最初に接続失敗すると未定義になるから保険のため
-        wsd = None
-        comebacks = None
+        # この変数たちは最初に接続失敗すると未定義になるから保険のため
+        # websocket_daemon(_ws_send_d)
+        wsd: Union[None, asyncio.Task] = None
+        # comebacks(asyncio.gather)
+        comebacks: Union[None, asyncio.Future] = None
         while True:
             try:
                 async with websockets.connect(self.WS_URL) as ws:
                     wsd = asyncio.create_task(self._ws_send_d(ws))
-                    _cmbs = []
+                    _cmbs: list[Awaitable[None]] = []
                     for i in self._on_comeback.values():
                         if i[0]:
                             await i[1]()
@@ -205,6 +207,10 @@ class Bromine:
         body = {"id": id_}
         self.ws_send("disconnect", body)
         self.logger.info(f"disconnect channel:{channel}, id:{id_}")
+
+# -------------------
+# -ここから下削除予定-
+# -------------------
 
     async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         url = f"https://{self.INSTANCE}/api/"+endp
