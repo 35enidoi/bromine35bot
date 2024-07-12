@@ -45,6 +45,8 @@ class Bromine35:
         self.notes_queue = asyncio.Queue()
         self.bakuha = bakuhaevent
         self.br = br
+        self.TESTMODE = TESTMODE
+        self.MY_USER_ID = MY_USER_ID
         # cpuwatchは今使ってない
         br.add_pending(self.zyanken_starter)
         br.add_pending(self.local_speed_watch)
@@ -216,7 +218,7 @@ class Bromine35:
                 reversi_sys.playing_user_list.append(userid)
                 res = await self.br.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid4())
-                rv = reversi_sys(self.br, res.json(), id_, TESTMODE, MY_USER_ID)
+                rv = reversi_sys(self, res.json(), id_)
                 self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
                 # フォームは今のところ未対応みたい
@@ -233,7 +235,7 @@ class Bromine35:
                 # プレイ中のuseridのリストにぶち込む
                 reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid4())
-                rv = reversi_sys(self.br, game, id_, TESTMODE, MY_USER_ID)
+                rv = reversi_sys(self, game, id_)
                 self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
         else:
@@ -272,6 +274,7 @@ async def main():
     if not TESTMODE:
         await brm.setup()
     try:
+        print("start...")
         main_ = asyncio.create_task(br.main())
         await bakuha_event.wait()
         main_.cancel()
