@@ -13,6 +13,9 @@ import websockets
 
 class Bromine:
     def __init__(self, instance: str, token: str) -> None:
+        """bromineのcore
+        instance: 接続するインスタンス
+        token: トークン"""
         self.logpath = "botlog.txt"
         self.V = 1.1
 
@@ -40,6 +43,7 @@ class Bromine:
         self.logger = logging.getLogger("bromine35bot")
 
     async def main(self) -> None:
+        """開始する関数"""
         self.logger.warning("bot start")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
@@ -54,6 +58,8 @@ class Bromine:
                 print("catch")
             self.logger.warning("bot stop")
 
+    # 削除予定
+    # -----------------------------------
     async def _connect_check(self) -> None:
         while True:
             try:
@@ -74,8 +80,10 @@ class Bromine:
             else:
                 break
         await asyncio.sleep(2)
+    # -----------------------------------
 
     async def _runner(self) -> NoReturn:
+        """websocketとの交信を行うメインdaemon"""
         # この変数たちは最初に接続失敗すると未定義になるから保険のため
         # websocket_daemon(_ws_send_d)
         wsd: Union[None, asyncio.Task] = None
@@ -141,16 +149,21 @@ class Bromine:
         return id_
 
     def del_comeback(self, id_: str) -> None:
-        """comeback消す奴"""
+        """comeback消す"""
         self._on_comeback.pop(id_)
 
+    # 削除予定
+    # -----------------------------------
     def add_pending(self, func: Callable[[], Awaitable[NoReturn]]) -> None:
         if not asyncio.iscoroutinefunction(func):
             raise ValueError("func_がコルーチンじゃないです。")
         self._pendings.append(func)
+    # -----------------------------------
 
     async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
+        """websocketを送るdaemon"""
         __PRIORITY_TYPES = ("connect", "disconnect")
+        # まずはchannelsの再接続から始める
         for i, v in self._channels.items():
             await ws.send(json.dumps({
                 "type": "connect",
@@ -160,6 +173,10 @@ class Bromine:
                     "params": v[2]
                 }
             }))
+
+        # ここの処理ちょっと怪しい
+        # この処理必要？(中身の初期化はいるけど...)
+        # -----------------------------------
         # queueの中身の初期化兼disconnect等を処理
         while not self._send_queue.empty():
             getter = await self._send_queue.get()
@@ -168,6 +185,8 @@ class Bromine:
                     "type": getter[0],
                     "body": getter[1]
                 }))
+        # -----------------------------------
+
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self._send_queue.get()
