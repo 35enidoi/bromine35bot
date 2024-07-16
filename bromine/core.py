@@ -2,8 +2,8 @@ import json
 import asyncio
 import uuid
 import random
-import os
 import logging
+from functools import partial
 from typing import Any, Awaitable, Callable, NoReturn, Optional, Union
 
 from misskey import Misskey
@@ -12,11 +12,11 @@ import websockets
 
 
 class Bromine:
-    def __init__(self, instance: str, token: str) -> None:
+    def __init__(self, instance: str, token: str, *, loglevel: int = logging.DEBUG) -> None:
         """bromineのcore
         instance: 接続するインスタンス
-        token: トークン"""
-        self.logpath = "botlog.txt"
+        token: トークン
+        loglevel: loggingのlogのレベル"""
         self.V = 1.1
 
         # uuid:[channelname, awaitablefunc, params]
@@ -32,19 +32,14 @@ class Bromine:
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
 
         # logger作成
-        logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
-        level = logging.INFO
+        self.__logger = logging.getLogger("bromine35bot")
 
-        logging.basicConfig(format=logformat,
-                            filename=os.path.abspath(os.path.join(os.path.dirname(__file__), f'./{self.logpath}')),
-                            encoding="utf-8",
-                            level=level)
-
-        self.logger = logging.getLogger("bromine35bot")
+        # logを簡単にできるよう部分適用する
+        self.log = partial(self.__logger.log, level=loglevel)
 
     async def main(self) -> None:
         """開始する関数"""
-        self.logger.warning("bot start")
+        self.log(msg="start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -56,7 +51,7 @@ class Bromine:
                 await other
             except asyncio.exceptions.CancelledError:
                 print("catch")
-            self.logger.warning("bot stop")
+            self.log(msg="finish main.")
 
     # 削除予定
     # -----------------------------------
@@ -65,17 +60,17 @@ class Bromine:
             try:
                 async with websockets.connect(self.WS_URL):
                     pass
-                self.logger.info("connect check success")
+                self.log(msg="connect check success")
             except asyncio.exceptions.TimeoutError:
-                self.logger.warning("websocket timeout")
+                self.log(msg="websocket timeout")
                 await asyncio.sleep(30)
             except websockets.exceptions.WebSocketException as e:
                 print(f"websocket error: {e}")
-                self.logger.warning(f"websocket error:{e}")
+                self.log(msg=f"websocket error:{e}")
                 await asyncio.sleep(40)
             except Exception as e:
                 print(f"yoteigai error:{e}")
-                self.logger.critical(f"yoteigai error:{e}")
+                self.log(msg=f"yoteigai error:{e}")
                 await asyncio.sleep(60)
             else:
                 break
@@ -101,7 +96,7 @@ class Bromine:
                             _cmbs.append(i[1]())
                     if _cmbs != []:
                         comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
-                    self.logger.info("websocket connect success")
+                    self.log(msg="websocket connect success")
                     while True:
                         data = json.loads(await ws.recv())
                         if data['type'] == 'channel':
@@ -110,18 +105,18 @@ class Bromine:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
                             else:
-                                self.logger.warning("data come from unknown channel")
+                                self.log(msg="data come from unknown channel")
                         else:
-                            self.logger.warning(f"data come from not channel, datatype[{data['type']}]")
+                            self.log(msg=f"data come from not channel, datatype[{data['type']}]")
 
             except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
-                self.logger.warning(f"error occured:{e}")
+                self.log(msg=f"error occured:{e}")
                 await asyncio.sleep(2)
                 await self._connect_check()
                 continue
 
             except Exception as e:
-                self.logger.fatal(f"fatal Error:{type(e)}, args:{e.args}")
+                self.log(msg=f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
 
             finally:
@@ -217,7 +212,7 @@ class Bromine:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
-        self.logger.info(f"connect channel:{channel}, id:{id_}")
+        self.log(msg=f"connect channel:{channel}, id:{id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
@@ -225,7 +220,7 @@ class Bromine:
         channel = self._channels.pop(id_)[0]
         body = {"id": id_}
         self.ws_send("disconnect", body)
-        self.logger.info(f"disconnect channel:{channel}, id:{id_}")
+        self.log(msg=f"disconnect channel:{channel}, id:{id_}")
 
 # -------------------
 # -ここから下削除予定-
@@ -239,19 +234,19 @@ class Bromine:
     def safe_wrap(self, func_: Callable, *arg, **kargs):
         try:
             ret = func_(*arg, **kargs)
-            self.logger.info(f"call {func_.__name__} success.")
+            self.log(msg=f"call {func_.__name__} success.")
             return ret
         except Exception:
-            self.logger.info(f"call {func_.__name__} fail.")
+            self.log(msg=f"call {func_.__name__} fail.")
             return None
 
     def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
         try:
             _ = func_(*arg, **kargs)
-            self.logger.info(f"call {func_.__name__} success.")
+            self.log(msg=f"call {func_.__name__} success.")
             return True
         except Exception:
-            self.logger.info(f"call {func_.__name__} fail.")
+            self.log(msg=f"call {func_.__name__} fail.")
             return False
 
     async def create_reaction(self, id, reaction, Instant=False):
@@ -259,16 +254,16 @@ class Bromine:
             await asyncio.sleep(random.randint(3, 5))
         try:
             await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
-            self.logger.info(f"create reaction success:{reaction}")
+            self.log(msg=f"create reaction success:{reaction}")
         except Exception as e:
-            self.logger.info(f"create reaction fail:{e}")
+            self.log(msg=f"create reaction fail:{e}")
 
     async def create_follow(self, id):
         try:
             await asyncio.to_thread(self.mk.following_create, id)
-            self.logger.info("follow create success")
+            self.log(msg="follow create success")
         except Exception as e:
-            self.logger.info(f"follow create fail:{e}")
+            self.log(msg=f"follow create fail:{e}")
 
     async def create_note(self, text, cw=None, direct=None, reply=None):
         if direct is None:
@@ -282,6 +277,6 @@ class Bromine:
                                     visibility=notevisible,
                                     visible_user_ids=direct,
                                     reply_id=reply)
-            self.logger.info("note create success")
+            self.log(msg="note create success")
         except Exception as e:
-            self.logger.info(f"note create fail:{e}")
+            self.log(msg=f"note create fail:{e}")

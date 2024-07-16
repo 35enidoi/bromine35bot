@@ -4,6 +4,7 @@ import asyncio
 from uuid import uuid4
 from random import randint
 from datetime import timedelta
+import logging
 
 from misskey import exceptions
 
@@ -268,7 +269,18 @@ class Bromine35:
 
 
 async def main():
-    br = core.Bromine(instance, token)
+    # ログの設定
+    logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
+    level = logging.INFO
+    br_level = logging.INFO
+    logpath = "botlog.txt"
+
+    logging.basicConfig(format=logformat,
+                        filename=os.path.abspath(os.path.join(os.path.dirname(__file__), f'./{logpath}')),
+                        encoding="utf-8",
+                        level=level)
+
+    br = core.Bromine(instance, token, loglevel=br_level)
     bakuha_event = asyncio.Event()
     brm = Bromine35(br, bakuha_event)
     if not TESTMODE:
