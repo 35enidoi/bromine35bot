@@ -109,7 +109,12 @@ class Bromine:
                         else:
                             self.log(msg=f"data come from not channel, datatype[{data['type']}]")
 
-            except (websockets.exceptions.WebSocketException, asyncio.exceptions.TimeoutError) as e:
+            except (
+                asyncio.exceptions.TimeoutError,
+                websockets.exceptions.ConnectionClosed,
+                websockets.exceptions.ConnectionClosedError,
+                websockets.exceptions.ConnectionClosedOK,
+            ) as e:
                 self.log(msg=f"error occured:{e}")
                 await asyncio.sleep(2)
                 await self._connect_check()
