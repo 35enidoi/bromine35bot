@@ -12,11 +12,14 @@ import websockets
 
 
 class Bromine:
-    def __init__(self, instance: str, token: str, *, loglevel: int = logging.DEBUG) -> None:
+    def __init__(self, instance: str, token: str, *, loglevel: int = logging.DEBUG, cooltime: int = 5) -> None:
         """bromineのcore
         instance: 接続するインスタンス
         token: トークン
-        loglevel: loggingのlogのレベル"""
+        loglevel: loggingのlogのレベル
+        cooltime: 接続に失敗したときに待つ時間"""
+        # ヴァージョン
+        # これいる？
         self.V = 1.1
 
         # uuid:[channelname, awaitablefunc, params]
@@ -26,9 +29,13 @@ class Bromine:
         # uuid:[isblock, awaitablefunc]
         self._on_comeback: dict[bool, Callable[[], Awaitable[None]]] = {}
 
+        # 値の保存
         self.INSTANCE = instance
         self.TOKEN = token
-        self.mk = Misskey(self.INSTANCE, i=self.TOKEN)
+        self.COOL_TIME = cooltime
+
+        # URL作ったり
+        self.mk = Misskey(self.INSTANCE, i=self.TOKEN)  # 削除予定
         self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
 
         # logger作成
@@ -53,32 +60,10 @@ class Bromine:
                 print("catch")
             self.log(msg="finish main.")
 
-    # 削除予定
-    # -----------------------------------
-    async def _connect_check(self) -> None:
-        while True:
-            try:
-                async with websockets.connect(self.WS_URL):
-                    pass
-                self.log(msg="connect check success")
-            except asyncio.exceptions.TimeoutError:
-                self.log(msg="websocket timeout")
-                await asyncio.sleep(30)
-            except websockets.exceptions.WebSocketException as e:
-                print(f"websocket error: {e}")
-                self.log(msg=f"websocket error:{e}")
-                await asyncio.sleep(40)
-            except Exception as e:
-                print(f"yoteigai error:{e}")
-                self.log(msg=f"yoteigai error:{e}")
-                await asyncio.sleep(60)
-            else:
-                break
-        await asyncio.sleep(2)
-    # -----------------------------------
-
     async def _runner(self) -> NoReturn:
         """websocketとの交信を行うメインdaemon"""
+        # 何回連続で接続に失敗したかのカウンター
+        connect_fail_count = 0
         # この変数たちは最初に接続失敗すると未定義になるから保険のため
         # websocket_daemon(_ws_send_d)
         wsd: Union[None, asyncio.Task] = None
@@ -87,17 +72,27 @@ class Bromine:
         while True:
             try:
                 async with websockets.connect(self.WS_URL) as ws:
+                    # 送るdaemonの作成
                     wsd = asyncio.create_task(self._ws_send_d(ws))
+
+                    # comebacksの処理
                     _cmbs: list[Awaitable[None]] = []
                     for i in self._on_comeback.values():
                         if i[0]:
+                            # もしブロックしなければいけないcomebackなら待つ
                             await i[1]()
                         else:
+                            # でなければ後で処理する
                             _cmbs.append(i[1]())
                     if _cmbs != []:
+                        # 全部一気にgatherで管理
                         comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
+
                     self.log(msg="websocket connect success")
+                    # 接続に成功したということでfail_countを0に
+                    connect_fail_count = 0
                     while True:
+                        # データ受け取り
                         data = json.loads(await ws.recv())
                         if data['type'] == 'channel':
                             for i, v in self._channels.items():
@@ -107,6 +102,7 @@ class Bromine:
                             else:
                                 self.log(msg="data come from unknown channel")
                         else:
+                            # たまにchannel以外から来ることがある（謎）
                             self.log(msg=f"data come from not channel, datatype[{data['type']}]")
 
             except (
@@ -115,23 +111,33 @@ class Bromine:
                 websockets.exceptions.ConnectionClosedError,
                 websockets.exceptions.ConnectionClosedOK,
             ) as e:
+                # websocketが死んだりタイムアウトした時の処理
                 self.log(msg=f"error occured:{e}")
-                await asyncio.sleep(2)
-                await self._connect_check()
-                continue
+                connect_fail_count += 1
+                await asyncio.sleep(self.COOL_TIME)
+                if connect_fail_count > 5:
+                    # Todo: 例外を投げる？
+                    # 5回以上連続で失敗したとき長く寝るようにする
+                    # とりあえず30待つようにする
+                    await asyncio.sleep(30)
 
             except Exception as e:
+                # 予定外のエラー発生時。
                 self.log(msg=f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
 
             finally:
+                # 再接続する際、いろいろ初期化する
                 if type(wsd) is asyncio.Task:
+                    # _ws_send_dを止める
                     wsd.cancel()
                     try:
                         await wsd
                     except asyncio.CancelledError:
                         pass
+                    wsd = None
                 if comebacks is not None:
+                    # ブロックしないcomebacksがもし生きていたら殺す
                     comebacks.cancel()
                     try:
                         await comebacks
@@ -187,6 +193,7 @@ class Bromine:
                 }))
         # -----------------------------------
 
+        # あとはずっとqueueからgetしてそれを送る。
         while True:
             # 型:tuple(type:str, body:dict)
             getter = await self._send_queue.get()
