@@ -26,8 +26,8 @@ class Bromine:
         self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Awaitable[None]], dict[str, Any]]] = {}
         # list[awaitablefunc]
         self._pendings: list[Callable[[None], Awaitable[NoReturn]]] = []
-        # uuid:[isblock, awaitablefunc]
-        self._on_comeback: dict[bool, Callable[[], Awaitable[None]]] = {}
+        # uuid:tuple[isblock, awaitablefunc]
+        self._on_comeback: dict[str, tuple[bool, Callable[[], Awaitable[None]]]] = {}
 
         # 値の保存
         self.INSTANCE = instance
