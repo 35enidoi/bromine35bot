@@ -5,10 +5,17 @@ from uuid import uuid4
 from random import randint
 from datetime import timedelta
 import logging
+from functools import partial
+from typing import Callable, Optional
+import random
 
-from misskey import exceptions
+from misskey import (
+    Misskey,
+    exceptions,
+)
+import requests
 
-import core
+import core as BrCore
 from reversi import reversi_sys
 
 
@@ -23,9 +30,109 @@ LIST_DETECT_JYOPA = (":_zi::_lyo::_pa:", "じょぱ",
                      ":zyopa_kuti_kara_daeki_to_iq_ga_ahure_deru_oto:")
 
 
+class Bromine_withmsk(BrCore.Bromine):
+    def __init__(self,
+                 instance: str,
+                 token: str,
+                 *,
+                 loglevel: int = logging.DEBUG,
+                 cooltime: int = 5,
+                 msk_loglevel: int = logging.DEBUG,) -> None:
+        """misskey.py付きになったBromine(お得！)"""
+        super().__init__(instance, token, loglevel=loglevel, cooltime=cooltime)
+
+        # 変数作成
+        self.INSTANCE = instance
+        self.TOKEN = token
+
+        # misskey.pyインスタンス作成
+        self.mk = Misskey(address=self.INSTANCE, i=self.TOKEN)
+
+        # logger作成
+        self.__logger = logging.getLogger("Br_msk")
+        self.__log = partial(self.__logger.log, level=msk_loglevel)
+
+    async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
+        """misskey.pyが対応していないエンドポイントなどに対して使うやつ
+        endp: エンドポイント
+        wttime: timeoutまで待つ時間"""
+        url = f"https://{self.INSTANCE}/api/"+endp
+        dicts["i"] = self.TOKEN
+        return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
+
+    async def create_reaction(self, id: str, reaction: str, Instant: bool = False):
+        """リアクションを作成するやつ
+        id: ノートid
+        reaction: リアクションの名前
+        Instance: 即時にリアクションするかどうか"""
+        if not Instant:
+            await asyncio.sleep(random.randint(3, 5))
+        try:
+            await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
+            self.__log(msg=f"create reaction success:{reaction}")
+        except Exception as e:
+            self.__log(msg=f"create reaction fail:{e}")
+
+    async def create_follow(self, id: str):
+        """リアクションを作成する関数
+        id: フォローするユーザーID"""
+        try:
+            await asyncio.to_thread(self.mk.following_create, id)
+            self.__log(msg="follow create success")
+        except Exception as e:
+            self.__log(msg=f"follow create fail:{e}")
+
+    async def create_note(self,
+                          text: str,
+                          cw: Optional[str] = None,
+                          direct: Optional[list[str]] = None,
+                          reply: Optional[str] = None):
+        """ノート作成関数
+        text: テキスト
+        cw: cwテキスト
+        direct: ダイレクトノートのメンション先のリスト
+        reply: リプライ先のノートID"""
+        if direct is None:
+            notevisible = "public"
+        else:
+            notevisible = "specified"
+        try:
+            await asyncio.to_thread(self.mk.notes_create,
+                                    text,
+                                    cw=cw,
+                                    visibility=notevisible,
+                                    visible_user_ids=direct,
+                                    reply_id=reply)
+            self.__log(msg="note create success")
+        except Exception as e:
+            self.__log(msg=f"note create fail:{e}")
+
+    # 削除予定
+    # -------------------
+
+    def safe_wrap(self, func_: Callable, *arg, **kargs):
+        try:
+            ret = func_(*arg, **kargs)
+            self.__log(msg=f"call {func_.__name__} success.")
+            return ret
+        except Exception:
+            self.__log(msg=f"call {func_.__name__} fail.")
+            return None
+
+    def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
+        try:
+            _ = func_(*arg, **kargs)
+            self.__log(msg=f"call {func_.__name__} success.")
+            return True
+        except Exception:
+            self.__log(msg=f"call {func_.__name__} fail.")
+            return False
+    # -------------------
+
+
 class zyanken_system:
     """じゃんけんしすてむ"""
-    def __init__(self, id_: str, fin_time_: int, br: core.Bromine) -> None:
+    def __init__(self, id_: str, fin_time_: int, br: Bromine_withmsk) -> None:
         self.br = br
         self.noteid = id_
         self.fintime = fin_time_
@@ -42,7 +149,7 @@ class zyanken_system:
 
 
 class Bromine35:
-    def __init__(self, br: core.Bromine, bakuhaevent: asyncio.Event) -> None:
+    def __init__(self, br: Bromine_withmsk, bakuhaevent: asyncio.Event) -> None:
         self.notes_queue = asyncio.Queue()
         self.bakuha = bakuhaevent
         self.br = br
@@ -270,7 +377,7 @@ class Bromine35:
 
 async def main():
     # ログの設定
-    logformat = "%(levelname)-9s %(asctime)s [%(funcName)s] %(message)a"
+    logformat = "%(levelname)-9s %(asctime)s [%(name)s](%(funcName)s) %(message)a"
     level = logging.INFO
     br_level = logging.INFO
     logpath = "botlog.txt"
@@ -280,7 +387,7 @@ async def main():
                         encoding="utf-8",
                         level=level)
 
-    br = core.Bromine(instance, token, loglevel=br_level)
+    br = Bromine_withmsk(instance, token, loglevel=br_level, msk_loglevel=br_level)
     bakuha_event = asyncio.Event()
     brm = Bromine35(br, bakuha_event)
     if not TESTMODE:
@@ -297,7 +404,6 @@ async def main():
     except Exception:
         isyoteigai = True
     except asyncio.CancelledError:
-        print("oni")
         isyoteigai = False
     else:
         isyoteigai = False

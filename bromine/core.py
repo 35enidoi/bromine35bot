@@ -1,13 +1,10 @@
 import json
 import asyncio
 import uuid
-import random
 import logging
 from functools import partial
 from typing import Any, Awaitable, Callable, NoReturn, Optional, Union
 
-from misskey import Misskey
-import requests
 import websockets
 
 
@@ -30,23 +27,19 @@ class Bromine:
         self._on_comeback: dict[str, tuple[bool, Callable[[], Awaitable[None]]]] = {}
 
         # 値の保存
-        self.INSTANCE = instance
-        self.TOKEN = token
         self.COOL_TIME = cooltime
 
-        # URL作ったり
-        self.mk = Misskey(self.INSTANCE, i=self.TOKEN)  # 削除予定
-        self.WS_URL = f'wss://{self.INSTANCE}/streaming?i={self.TOKEN}'
+        self.WS_URL = f'wss://{instance}/streaming?i={token}'
 
         # logger作成
-        self.__logger = logging.getLogger("bromine35bot")
+        self.__logger = logging.getLogger("Bromine")
 
         # logを簡単にできるよう部分適用する
-        self.log = partial(self.__logger.log, level=loglevel)
+        self.__log = partial(self.__logger.log, level=loglevel)
 
     async def main(self) -> None:
         """開始する関数"""
-        self.log(msg="start main.")
+        self.__log(msg="start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -57,8 +50,8 @@ class Bromine:
             try:
                 await other
             except asyncio.exceptions.CancelledError:
-                print("catch")
-            self.log(msg="finish main.")
+                self.__log(msg="catch other cancel.")
+            self.__log(msg="finish main.")
 
     async def _runner(self) -> NoReturn:
         """websocketとの交信を行うメインdaemon"""
@@ -88,7 +81,7 @@ class Bromine:
                         # 全部一気にgatherで管理
                         comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
 
-                    self.log(msg="websocket connect success")
+                    self.__log(msg="websocket connect success")
                     # 接続に成功したということでfail_countを0に
                     connect_fail_count = 0
                     while True:
@@ -100,10 +93,10 @@ class Bromine:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
                             else:
-                                self.log(msg="data come from unknown channel")
+                                self.__log(msg="data come from unknown channel")
                         else:
                             # たまにchannel以外から来ることがある（謎）
-                            self.log(msg=f"data come from not channel, datatype[{data['type']}]")
+                            self.__log(msg=f"data come from not channel, datatype[{data['type']}]")
 
             except (
                 asyncio.exceptions.TimeoutError,
@@ -112,7 +105,7 @@ class Bromine:
                 websockets.exceptions.ConnectionClosedOK,
             ) as e:
                 # websocketが死んだりタイムアウトした時の処理
-                self.log(msg=f"error occured:{e}")
+                self.__log(msg=f"error occured:{e}")
                 connect_fail_count += 1
                 await asyncio.sleep(self.COOL_TIME)
                 if connect_fail_count > 5:
@@ -123,7 +116,7 @@ class Bromine:
 
             except Exception as e:
                 # 予定外のエラー発生時。
-                self.log(msg=f"fatal Error:{type(e)}, args:{e.args}")
+                self.__log(msg=f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
 
             finally:
@@ -224,7 +217,7 @@ class Bromine:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
-        self.log(msg=f"connect channel:{channel}, id:{id_}")
+        self.__log(msg=f"connect channel:{channel}, id:{id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
@@ -232,63 +225,4 @@ class Bromine:
         channel = self._channels.pop(id_)[0]
         body = {"id": id_}
         self.ws_send("disconnect", body)
-        self.log(msg=f"disconnect channel:{channel}, id:{id_}")
-
-# -------------------
-# -ここから下削除予定-
-# -------------------
-
-    async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
-        url = f"https://{self.INSTANCE}/api/"+endp
-        dicts["i"] = self.TOKEN
-        return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
-
-    def safe_wrap(self, func_: Callable, *arg, **kargs):
-        try:
-            ret = func_(*arg, **kargs)
-            self.log(msg=f"call {func_.__name__} success.")
-            return ret
-        except Exception:
-            self.log(msg=f"call {func_.__name__} fail.")
-            return None
-
-    def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
-        try:
-            _ = func_(*arg, **kargs)
-            self.log(msg=f"call {func_.__name__} success.")
-            return True
-        except Exception:
-            self.log(msg=f"call {func_.__name__} fail.")
-            return False
-
-    async def create_reaction(self, id, reaction, Instant=False):
-        if not Instant:
-            await asyncio.sleep(random.randint(3, 5))
-        try:
-            await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
-            self.log(msg=f"create reaction success:{reaction}")
-        except Exception as e:
-            self.log(msg=f"create reaction fail:{e}")
-
-    async def create_follow(self, id):
-        try:
-            await asyncio.to_thread(self.mk.following_create, id)
-            self.log(msg="follow create success")
-        except Exception as e:
-            self.log(msg=f"follow create fail:{e}")
-
-    async def create_note(self, text, cw=None, direct=None, reply=None):
-        if direct is None:
-            notevisible = "public"
-        else:
-            notevisible = "specified"
-        try:
-            await asyncio.to_thread(self.mk.notes_create,
-                                    text,
-                                    cw=cw,
-                                    visibility=notevisible,
-                                    visible_user_ids=direct,
-                                    reply_id=reply)
-            self.log(msg="note create success")
-        except Exception as e:
-            self.log(msg=f"note create fail:{e}")
+        self.__log(msg=f"disconnect channel:{channel}, id:{id_}")
