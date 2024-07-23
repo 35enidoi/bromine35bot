@@ -130,7 +130,7 @@ class reversi_sys(reversi_core):
                     #     txt = "に投了されました:thinknyan:"
                     # else:
                     #     txt = "との戦いで引き分けになりました:taisen_arigatou_gozaimasita:"
-                    # await self.br.create_note(url+enemyname+txt)
+                    # await self.br.create_note(text=url+enemyname+txt)
             elif type_ == "started":
                 # 対戦開始時に送られる
                 print("start reversi! gameid:", self.game_id)
@@ -150,7 +150,7 @@ class reversi_sys(reversi_core):
                     # url = f"https://{self.br.INSTANCE}/reversi/g/{self.game_id} \n"
                     # enemyname = info["body"]["game"][f"user{2 if self.user1 else 1}"]["name"]
                     # txt = "と対戦を開始しました:taisen_yorosiku_onegaisimasu:"
-                    # await self.br.create_note(url+enemyname+txt)
+                    # await self.br.create_note(text=url+enemyname+txt)
 
                 if self.colour:
                     # もし自分の色が黒だった場合、先行なのでどっか置かないといけない。

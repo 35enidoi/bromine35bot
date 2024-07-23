@@ -6,12 +6,12 @@ from random import randint
 from datetime import timedelta
 import logging
 from functools import partial
-from typing import Callable, Optional
+from typing import Union
 import random
 
 from misskey import (
     Misskey,
-    exceptions,
+    exceptions as MiExceptions,
 )
 import requests
 
@@ -60,7 +60,7 @@ class Bromine_withmsk(BrCore.Bromine):
         dicts["i"] = self.TOKEN
         return await asyncio.to_thread(requests.post, url, json=dicts, timeout=wttime)
 
-    async def create_reaction(self, id: str, reaction: str, Instant: bool = False):
+    async def create_reaction(self, id: str, reaction: str, Instant: bool = False) -> None:
         """リアクションを作成するやつ
         id: ノートid
         reaction: リアクションの名前
@@ -73,7 +73,7 @@ class Bromine_withmsk(BrCore.Bromine):
         except Exception as e:
             self.__log(f"create reaction fail:{e}")
 
-    async def create_follow(self, id: str):
+    async def create_follow(self, id: str) -> None:
         """リアクションを作成する関数
         id: フォローするユーザーID"""
         try:
@@ -82,52 +82,20 @@ class Bromine_withmsk(BrCore.Bromine):
         except Exception as e:
             self.__log(f"follow create fail:{e}")
 
-    async def create_note(self,
-                          text: str,
-                          cw: Optional[str] = None,
-                          direct: Optional[list[str]] = None,
-                          reply: Optional[str] = None):
-        """ノート作成関数
-        text: テキスト
-        cw: cwテキスト
-        direct: ダイレクトノートのメンション先のリスト
-        reply: リプライ先のノートID"""
-        if direct is None:
-            notevisible = "public"
-        else:
-            notevisible = "specified"
+    async def create_note(self, **kargs) -> Union[dict, None]:
+        """Misskey().notes_createのラッパー"""
         try:
-            await asyncio.to_thread(self.mk.notes_create,
-                                    text,
-                                    cw=cw,
-                                    visibility=notevisible,
-                                    visible_user_ids=direct,
-                                    reply_id=reply)
-            self.__log("note create success")
-        except Exception as e:
-            self.__log(f"note create fail:{e}")
-
-    # 削除予定
-    # -------------------
-
-    def safe_wrap(self, func_: Callable, *arg, **kargs):
-        try:
-            ret = func_(*arg, **kargs)
-            self.__log(f"call {func_.__name__} success.")
-            return ret
-        except Exception:
-            self.__log(f"call {func_.__name__} fail.")
+            note = await asyncio.to_thread(self.mk.notes_create, **kargs)
+            self.__log(f"note create success. noteid: {note['createdNote']['id']}")
+            return note
+        except (
+            MiExceptions.MisskeyAPIException,
+            requests.exceptions.Timeout,
+            requests.exceptions.ConnectionError,
+        ) as e:
+            # misskey.pyのAPI側で例外が発生したとき
+            self.__log(f"note create fail: {e}")
             return None
-
-    def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
-        try:
-            _ = func_(*arg, **kargs)
-            self.__log(f"call {func_.__name__} success.")
-            return True
-        except Exception:
-            self.__log(f"call {func_.__name__} fail.")
-            return False
-    # -------------------
 
 
 class zyanken_system:
@@ -142,10 +110,7 @@ class zyanken_system:
 
     async def fin_timer(self):
         await asyncio.sleep(self.fintime)
-        await asyncio.to_thread(self.br.safe_wrap_retbool,
-                                self.br.mk.notes_create,
-                                text=self.zyanken_txt,
-                                renote_id=self.noteid)
+        await self.br.create_note(text=self.zyanken_txt, renote_id=self.noteid)
 
 
 class Bromine35:
@@ -173,11 +138,11 @@ class Bromine35:
         random_haba = 50
         while True:
             await asyncio.sleep(60*(interval + (randint(0, random_haba) if randominterval else 0)))
-            note = await asyncio.to_thread(self.br.safe_wrap,
-                                           self.br.mk.notes_create,
-                                           text=zyanken_start_mes,
-                                           poll_choices=("グー", "チョキ", "パー"),
-                                           poll_expired_after=timedelta(seconds=fintime))
+            note = await self.br.create_note(
+                text=zyanken_start_mes,
+                poll_choices=("グー", "チョキ", "パー"),
+                poll_expired_after=timedelta(seconds=fintime)
+            )
             if note is not None:
                 zksys = zyanken_system(note["createdNote"]["id"], fintime, self.br)
                 await zksys.fin_timer()
@@ -197,7 +162,7 @@ class Bromine35:
             # print("per second notes;{} re_notes;{}".format(round(notes/(60*interval), 2), round(re_notes/(60*interval), 2)))
             notetext = "ローカルの流速です:eyes_fidgeting:\n ノートの数;{}個 {}毎秒".format(notes, round(notes/(60*interval), 2))
             notetext += "\n リノートの数;{}個 {}毎秒\n インターバル;{}分".format(re_notes, round(re_notes/(60*interval), 2), interval)
-            await self.br.create_note(notetext)
+            await self.br.create_note(text=notetext)
 
     async def cpuwatch(self):
         while True:
@@ -211,7 +176,9 @@ class Bromine35:
                 text="ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(
                                                                             max(cpu_temp),
                                                                             min(cpu_temp),
-                                                                            sum(cpu_temp)/len(cpu_temp)), direct=["9gwek19h00"]
+                                                                            sum(cpu_temp)/len(cpu_temp)),
+                visibility="specified",
+                visible_user_ids=["9gwek19h00"]
                                                                             )
 
     async def cpuwatch_short(self, reply=None, directs=None):
@@ -227,10 +194,15 @@ class Bromine35:
             await asyncio.sleep(1)
         if reply is not None:
             await self.br.create_reaction(reply, ":blobcat_ok_sign:")
-            await self.br.create_note("ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(
-                max(cpu_temp),
-                min(cpu_temp),
-                sum(cpu_temp)/len(cpu_temp)), reply=reply, direct=directs)
+            await self.br.create_note(text="ラズパイ君の温度です！\n最大温度;{} 最小温度;{} 平均温度;{:.2f}".format(
+                                            max(cpu_temp),
+                                            min(cpu_temp),
+                                            sum(cpu_temp)/len(cpu_temp)
+                                        ),
+                                      reply_id=reply,
+                                      visibility="specified",
+                                      visible_user_ids=directs
+                                      )
         else:
             return cpu_temp
 
@@ -289,7 +261,7 @@ class Bromine35:
                         print("explosion!!!")
                         await self.br.create_reaction(note["body"]["id"], ":explosion:", Instant=True)
                         if not TESTMODE:
-                            await self.br.create_note("bot、爆発します。:explosion:")
+                            await self.br.create_note(text="bot、爆発します。:explosion:")
                         self.bakuha.set()
                     elif "invite" in note["body"]["text"]:
                         print("reversi invite comming")
@@ -303,12 +275,7 @@ class Bromine35:
                 print(note["body"]["user"]["name"])
             elif "ping" in note["body"]["text"]:
                 print("ping coming")
-                if note["body"]["visibility"] == "specified":
-                    asyncio.create_task(self.br.create_note("bomb!:explosion:",
-                                                            reply=note["body"]["id"],
-                                                            direct=[note["body"]["userId"]]))
-                else:
-                    asyncio.create_task(self.br.create_note("bomb!:explosion:", reply=note["body"]["id"]))
+                asyncio.create_task(self.br.create_note(text="bomb!:explosion:", reply_id=note["body"]["id"]))
                 asyncio.create_task(self.br.create_reaction(note["body"]["id"], "💣", Instant=True))
             elif "怪文書" in note["body"]["text"]:
                 print("kaibunsyo coming")
@@ -354,24 +321,24 @@ class Bromine35:
         kaibunsyo = ""
         try:
             notes = await asyncio.to_thread(self.br.mk.notes_local_timeline, randint(5, 15))
-        except exceptions.MisskeyAPIException:
+        except MiExceptions.MisskeyAPIException:
             return
         for i in notes:
             if i["cw"] is not None:
                 pass
             elif i["text"] is not None:
                 kaibunsyo += i["text"].replace("\n", "")[0:randint(0, len(i["text"]) if len(i["text"]) <= 15 else 15)]
-        await self.br.create_note(kaibunsyo.replace("#", "＃").replace("@", "*"), reply=noteid)
+        await self.br.create_note(text=kaibunsyo.replace("#", "＃").replace("@", "*"), reply_id=noteid)
 
     async def setup(self):
-        await self.br.create_note("bot、動きます。:ablobblewobble:")
+        await self.br.create_note(text="bot、動きます。:ablobblewobble:")
         await self.br.create_reaction("9iisgwj3rf", "✅")
 
     async def fin(self, yoteigai: bool):
         if yoteigai:
-            await self.br.create_note("bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:")
+            await self.br.create_note(text="bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:")
         else:
-            await self.br.create_note("botとまります:blob_hello:")
+            await self.br.create_note(text="botとまります:blob_hello:")
         await self.br.create_reaction("9iisgwj3rf", "❌", Instant=True)
 
 
