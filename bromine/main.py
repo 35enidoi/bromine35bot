@@ -50,7 +50,7 @@ class Bromine_withmsk(BrCore.Bromine):
 
         # logger作成
         self.__logger = logging.getLogger("Br_msk")
-        self.__log = partial(self.__logger.log, level=msk_loglevel)
+        self.__log = partial(self.__logger.log, msk_loglevel)
 
     async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         """misskey.pyが対応していないエンドポイントなどに対して使うやつ
@@ -69,18 +69,18 @@ class Bromine_withmsk(BrCore.Bromine):
             await asyncio.sleep(random.randint(3, 5))
         try:
             await asyncio.to_thread(self.mk.notes_reactions_create, id, reaction)
-            self.__log(msg=f"create reaction success:{reaction}")
+            self.__log(f"create reaction success:{reaction}")
         except Exception as e:
-            self.__log(msg=f"create reaction fail:{e}")
+            self.__log(f"create reaction fail:{e}")
 
     async def create_follow(self, id: str):
         """リアクションを作成する関数
         id: フォローするユーザーID"""
         try:
             await asyncio.to_thread(self.mk.following_create, id)
-            self.__log(msg="follow create success")
+            self.__log("follow create success")
         except Exception as e:
-            self.__log(msg=f"follow create fail:{e}")
+            self.__log(f"follow create fail:{e}")
 
     async def create_note(self,
                           text: str,
@@ -103,9 +103,9 @@ class Bromine_withmsk(BrCore.Bromine):
                                     visibility=notevisible,
                                     visible_user_ids=direct,
                                     reply_id=reply)
-            self.__log(msg="note create success")
+            self.__log("note create success")
         except Exception as e:
-            self.__log(msg=f"note create fail:{e}")
+            self.__log(f"note create fail:{e}")
 
     # 削除予定
     # -------------------
@@ -113,19 +113,19 @@ class Bromine_withmsk(BrCore.Bromine):
     def safe_wrap(self, func_: Callable, *arg, **kargs):
         try:
             ret = func_(*arg, **kargs)
-            self.__log(msg=f"call {func_.__name__} success.")
+            self.__log(f"call {func_.__name__} success.")
             return ret
         except Exception:
-            self.__log(msg=f"call {func_.__name__} fail.")
+            self.__log(f"call {func_.__name__} fail.")
             return None
 
     def safe_wrap_retbool(self, func_: Callable, *arg, **kargs):
         try:
             _ = func_(*arg, **kargs)
-            self.__log(msg=f"call {func_.__name__} success.")
+            self.__log(f"call {func_.__name__} success.")
             return True
         except Exception:
-            self.__log(msg=f"call {func_.__name__} fail.")
+            self.__log(f"call {func_.__name__} fail.")
             return False
     # -------------------
 

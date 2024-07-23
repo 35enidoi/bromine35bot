@@ -35,11 +35,11 @@ class Bromine:
         self.__logger = logging.getLogger("Bromine")
 
         # logを簡単にできるよう部分適用する
-        self.__log = partial(self.__logger.log, level=loglevel)
+        self.__log = partial(self.__logger.log, loglevel)
 
     async def main(self) -> None:
         """開始する関数"""
-        self.__log(msg="start main.")
+        self.__log("start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
         other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
@@ -50,8 +50,8 @@ class Bromine:
             try:
                 await other
             except asyncio.exceptions.CancelledError:
-                self.__log(msg="catch other cancel.")
-            self.__log(msg="finish main.")
+                self.__log("catch other cancel.")
+            self.__log("finish main.")
 
     async def _runner(self) -> NoReturn:
         """websocketとの交信を行うメインdaemon"""
@@ -81,7 +81,7 @@ class Bromine:
                         # 全部一気にgatherで管理
                         comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
 
-                    self.__log(msg="websocket connect success")
+                    self.__log("websocket connect success")
                     # 接続に成功したということでfail_countを0に
                     connect_fail_count = 0
                     while True:
@@ -93,10 +93,10 @@ class Bromine:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
                             else:
-                                self.__log(msg="data come from unknown channel")
+                                self.__log("data come from unknown channel")
                         else:
                             # たまにchannel以外から来ることがある（謎）
-                            self.__log(msg=f"data come from not channel, datatype[{data['type']}]")
+                            self.__log(f"data come from not channel, datatype[{data['type']}]")
 
             except (
                 asyncio.exceptions.TimeoutError,
@@ -105,7 +105,7 @@ class Bromine:
                 websockets.exceptions.ConnectionClosedOK,
             ) as e:
                 # websocketが死んだりタイムアウトした時の処理
-                self.__log(msg=f"error occured:{e}")
+                self.__log(f"error occured:{e}")
                 connect_fail_count += 1
                 await asyncio.sleep(self.COOL_TIME)
                 if connect_fail_count > 5:
@@ -116,7 +116,7 @@ class Bromine:
 
             except Exception as e:
                 # 予定外のエラー発生時。
-                self.__log(msg=f"fatal Error:{type(e)}, args:{e.args}")
+                self.__log(f"fatal Error:{type(e)}, args:{e.args}")
                 raise e
 
             finally:
@@ -217,7 +217,7 @@ class Bromine:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
-        self.__log(msg=f"connect channel:{channel}, id:{id_}")
+        self.__log(f"connect channel:{channel}, id:{id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
@@ -225,4 +225,4 @@ class Bromine:
         channel = self._channels.pop(id_)[0]
         body = {"id": id_}
         self.ws_send("disconnect", body)
-        self.__log(msg=f"disconnect channel:{channel}, id:{id_}")
+        self.__log(f"disconnect channel:{channel}, id:{id_}")
