@@ -343,6 +343,12 @@ class Bromine35:
 
 
 async def main():
+    # bakuha_eventを待つ関数
+    async def __bakuha_daemon(brm_: asyncio.Task[None], bakuha_ev: asyncio.Event):
+        await bakuha_ev.wait()
+        # 爆破イベントが発火した場合、キャンセルする。
+        brm_.cancel()
+
     # ログの設定
     logformat = "%(levelname)-9s %(asctime)s [%(name)s](%(funcName)s) %(message)a"
     level = logging.INFO
@@ -357,17 +363,15 @@ async def main():
     br = Bromine_withmsk(instance, token, loglevel=br_level, msk_loglevel=br_level)
     bakuha_event = asyncio.Event()
     brm = Bromine35(br, bakuha_event)
+    # 一応爆破イベントdaemonが作られる前に停止されたとき用に初期化
+    bakuha_wait_d: Union[asyncio.Task, None] = None
     if not TESTMODE:
         await brm.setup()
     try:
         print("start...")
         main_ = asyncio.create_task(br.main())
-        await bakuha_event.wait()
-        main_.cancel()
-        try:
-            await main_
-        except asyncio.CancelledError:
-            print("Explosioned.")
+        bakuha_wait_d = asyncio.create_task(__bakuha_daemon(main_, bakuha_event))
+        await main_
     except Exception:
         isyoteigai = True
     except asyncio.CancelledError:
@@ -375,11 +379,21 @@ async def main():
     else:
         isyoteigai = False
     finally:
+        if bakuha_wait_d is not None:
+            # 爆破イベントdaemonの処理
+            bakuha_wait_d.cancel()
+            try:
+                await bakuha_wait_d
+            except asyncio.CancelledError:
+                pass
+
         if TESTMODE:
             print("Fin...")
         elif bakuha_event.is_set():
+            # もし爆破されたらprintするだけ
             print("bakuhasareta...")
         else:
+            # 終了処理
             await brm.fin(isyoteigai)
 
 
