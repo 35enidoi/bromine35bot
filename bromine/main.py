@@ -360,6 +360,8 @@ async def main():
                         encoding="utf-8",
                         level=level)
 
+    # 変数を作る
+    isyoteigai = True
     br = Bromine_withmsk(instance, token, msk_loglevel=br_mk_level)
     br.loglevel = br_level
     bakuha_event = asyncio.Event()
@@ -373,8 +375,6 @@ async def main():
         main_ = asyncio.create_task(br.main())
         bakuha_wait_d = asyncio.create_task(__bakuha_daemon(main_, bakuha_event))
         await main_
-    except Exception:
-        isyoteigai = True
     except asyncio.CancelledError:
         isyoteigai = False
     else:
