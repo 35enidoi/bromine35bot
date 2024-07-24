@@ -9,7 +9,7 @@ import websockets
 
 
 class Bromine:
-    def __init__(self, instance: str, token: str, *, loglevel: int = logging.DEBUG, cooltime: int = 5) -> None:
+    def __init__(self, instance: str, token: str, *, cooltime: int = 5) -> None:
         """bromineのcore
         instance: 接続するインスタンス
         token: トークン
@@ -35,7 +35,16 @@ class Bromine:
         self.__logger = logging.getLogger("Bromine")
 
         # logを簡単にできるよう部分適用する
-        self.__log = partial(self.__logger.log, loglevel)
+        self.__log = partial(self.__logger.log, logging.DEBUG)
+
+    @property
+    def loglevel(self) -> int:
+        """現在のログレベル"""
+        return self.__log.args[0]
+
+    @loglevel.setter
+    def loglevel(self, level: int) -> None:
+        self.__log = partial(self.__logger.log, level)
 
     async def main(self) -> None:
         """開始する関数"""

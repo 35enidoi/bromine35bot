@@ -35,11 +35,10 @@ class Bromine_withmsk(BrCore.Bromine):
                  instance: str,
                  token: str,
                  *,
-                 loglevel: int = logging.DEBUG,
                  cooltime: int = 5,
                  msk_loglevel: int = logging.DEBUG,) -> None:
         """misskey.py付きになったBromine(お得！)"""
-        super().__init__(instance, token, loglevel=loglevel, cooltime=cooltime)
+        super().__init__(instance, token, cooltime=cooltime)
 
         # 変数作成
         self.INSTANCE = instance
@@ -353,6 +352,7 @@ async def main():
     logformat = "%(levelname)-9s %(asctime)s [%(name)s](%(funcName)s) %(message)a"
     level = logging.INFO
     br_level = logging.INFO
+    br_mk_level = logging.INFO
     logpath = "botlog.txt"
 
     logging.basicConfig(format=logformat,
@@ -360,7 +360,8 @@ async def main():
                         encoding="utf-8",
                         level=level)
 
-    br = Bromine_withmsk(instance, token, loglevel=br_level, msk_loglevel=br_level)
+    br = Bromine_withmsk(instance, token, msk_loglevel=br_mk_level)
+    br.loglevel = br_level
     bakuha_event = asyncio.Event()
     brm = Bromine35(br, bakuha_event)
     # 一応爆破イベントdaemonが作られる前に停止されたとき用に初期化
