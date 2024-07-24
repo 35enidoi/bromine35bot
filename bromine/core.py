@@ -26,6 +26,9 @@ class Bromine:
         # uuid:tuple[isblock, awaitablefunc]
         self._on_comeback: dict[str, tuple[bool, Callable[[], Awaitable[None]]]] = {}
 
+        # send_queueはここで作るとエラーが出るので型ヒントのみ
+        self._send_queue: asyncio.Queue[tuple[str, dict]]
+
         # 値の保存
         self.COOL_TIME = cooltime
 
@@ -170,9 +173,11 @@ class Bromine:
 
     async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         """websocketを送るdaemon"""
-        __PRIORITY_TYPES = ("connect", "disconnect")
+        # すでに接続済みのchannelにconnectしたりしないようにするやつ
+        already_connected_ids: set[str] = set()
         # まずはchannelsの再接続から始める
         for i, v in self._channels.items():
+            already_connected_ids.add(i)
             await ws.send(json.dumps({
                 "type": "connect",
                 "body": {
@@ -182,26 +187,29 @@ class Bromine:
                 }
             }))
 
-        # ここの処理ちょっと怪しい
-        # この処理必要？(中身の初期化はいるけど...)
-        # -----------------------------------
-        # queueの中身の初期化兼disconnect等を処理
+        # くえうえの初期化
         while not self._send_queue.empty():
-            getter = await self._send_queue.get()
-            if any(getter[0] is i for i in __PRIORITY_TYPES):
-                await ws.send(json.dumps({
-                    "type": getter[0],
-                    "body": getter[1]
-                }))
-        # -----------------------------------
+            type_, body_ = await self._send_queue.get()
+            if type_ == "connect":
+                if body_["id"] in already_connected_ids:
+                    # もうすでに送ったやつなので送らない
+                    continue
+                else:
+                    # 追加する
+                    already_connected_ids.add(body_["id"])
+
+            await ws.send(json.dumps({
+                "type": type_,
+                "body": body_
+            }))
 
         # あとはずっとqueueからgetしてそれを送る。
         while True:
             # 型:tuple(type:str, body:dict)
-            getter = await self._send_queue.get()
+            type_, body_ = await self._send_queue.get()
             await ws.send(json.dumps({
-                "type": getter[0],
-                "body": getter[1]
+                "type": type_,
+                "body": body_
             }))
 
     def ws_send(self, type_: str, body: dict) -> None:
