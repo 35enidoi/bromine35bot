@@ -21,8 +21,6 @@ class Bromine:
 
         # uuid:[channelname, awaitablefunc, params]
         self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Awaitable[None]], dict[str, Any]]] = {}
-        # list[awaitablefunc]
-        self._pendings: list[Callable[[None], Awaitable[NoReturn]]] = []
         # uuid:tuple[isblock, awaitablefunc]
         self._on_comeback: dict[str, tuple[bool, Callable[[], Awaitable[None]]]] = {}
 
@@ -49,20 +47,14 @@ class Bromine:
     def loglevel(self, level: int) -> None:
         self.__log = partial(self.__logger.log, level)
 
-    async def main(self) -> None:
+    async def main(self) -> NoReturn:
         """開始する関数"""
         self.__log("start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self._send_queue = asyncio.Queue()
-        other = asyncio.gather(*(i() for i in self._pendings), return_exceptions=True)
         try:
             await asyncio.create_task(self._runner())
         finally:
-            other.cancel()
-            try:
-                await other
-            except asyncio.exceptions.CancelledError:
-                self.__log("catch other cancel.")
             self.__log("finish main.")
 
     async def _runner(self) -> NoReturn:
@@ -162,14 +154,6 @@ class Bromine:
     def del_comeback(self, id_: str) -> None:
         """comeback消す"""
         self._on_comeback.pop(id_)
-
-    # 削除予定
-    # -----------------------------------
-    def add_pending(self, func: Callable[[], Awaitable[NoReturn]]) -> None:
-        if not asyncio.iscoroutinefunction(func):
-            raise ValueError("func_がコルーチンじゃないです。")
-        self._pendings.append(func)
-    # -----------------------------------
 
     async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         """websocketを送るdaemon"""

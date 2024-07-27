@@ -6,7 +6,7 @@ from random import randint
 from datetime import timedelta
 import logging
 from functools import partial
-from typing import Union
+from typing import NoReturn, Union, Callable, Coroutine, Any
 import random
 
 from misskey import (
@@ -43,6 +43,8 @@ class Bromine_withmsk(BrCore.Bromine):
         # 変数作成
         self.INSTANCE = instance
         self.TOKEN = token
+        self.__pendings: list[Callable[[], Coroutine[Any, Any, NoReturn]]] = []
+        self.is_running: bool = False
 
         # misskey.pyインスタンス作成
         self.mk = Misskey(address=self.INSTANCE, i=self.TOKEN)
@@ -50,6 +52,27 @@ class Bromine_withmsk(BrCore.Bromine):
         # logger作成
         self.__logger = logging.getLogger("Br_msk")
         self.__log = partial(self.__logger.log, msk_loglevel)
+
+    def add_pending(self, func: Callable[[], Coroutine[Any, Any, NoReturn]]) -> None:
+        if asyncio.iscoroutinefunction(func):
+            if self.is_running:
+                raise ValueError("メイン関数が実行中なので追加不可能です。")
+            else:
+                self.__pendings.append(func)
+        else:
+            raise TypeError("関数はコルーチンでなければなりません。")
+
+    async def main(self) -> NoReturn:
+        self.is_running = True
+        pendings = asyncio.gather(*(i() for i in self.__pendings), return_exceptions=True)
+        try:
+            await super().main()
+        finally:
+            pendings.cancel()
+            try:
+                await pendings
+            except asyncio.CancelledError:
+                pass
 
     async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         """misskey.pyが対応していないエンドポイントなどに対して使うやつ
