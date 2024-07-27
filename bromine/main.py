@@ -73,6 +73,7 @@ class Bromine_withmsk(BrCore.Bromine):
                 await pendings
             except asyncio.CancelledError:
                 pass
+            self.is_running = False
 
     async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         """misskey.pyが対応していないエンドポイントなどに対して使うやつ
