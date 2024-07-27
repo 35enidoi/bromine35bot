@@ -69,6 +69,11 @@ class Bromine:
         while True:
             try:
                 async with websockets.connect(self.WS_URL) as ws:
+                    # ちゃんと通ってるかpingで確認
+                    ping_wait = await ws.ping()
+                    pong_latency = await ping_wait
+                    self.__log(f"websocket connect success. latency: {pong_latency}s")
+
                     # 送るdaemonの作成
                     wsd = asyncio.create_task(self._ws_send_d(ws))
 
@@ -85,7 +90,6 @@ class Bromine:
                         # 全部一気にgatherで管理
                         comebacks = asyncio.gather(*_cmbs, return_exceptions=True)
 
-                    self.__log("websocket connect success")
                     # 接続に成功したということでfail_countを0に
                     connect_fail_count = 0
                     while True:
