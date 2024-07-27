@@ -15,10 +15,6 @@ class Bromine:
         token: トークン
         loglevel: loggingのlogのレベル
         cooltime: 接続に失敗したときに待つ時間"""
-        # ヴァージョン
-        # これいる？
-        self.V = 1.1
-
         # uuid:[channelname, awaitablefunc, params]
         self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]], dict[str, Any]]] = {}
         # uuid:tuple[isblock, awaitablefunc]
