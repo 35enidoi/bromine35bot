@@ -221,9 +221,10 @@ class Bromine:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
-            self.__log(f"connect channel before run: {channel}, id: {id_}")
-        else:
             self.__log(f"connect channel: {channel}, id: {id_}")
+            
+        else:
+            self.__log(f"connect channel before run: {channel}, id: {id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
