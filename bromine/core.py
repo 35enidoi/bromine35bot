@@ -23,6 +23,9 @@ class Bromine:
         # send_queueはここで作るとエラーが出るので型ヒントのみ
         self.__send_queue: asyncio.Queue[tuple[str, dict]]
 
+        # 実行中かどうかの変数
+        self.__is_running: bool = False
+
         # 値の保存
         self.__COOL_TIME = cooltime
 
@@ -43,14 +46,21 @@ class Bromine:
     def loglevel(self, level: int) -> None:
         self.__log = partial(self.__logger.log, level)
 
+    @property
+    def is_running(self) -> bool:
+        """メイン関数が実行中かどうか"""
+        return self.__is_running
+
     async def main(self) -> NoReturn:
         """開始する関数"""
         self.__log("start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self.__send_queue = asyncio.Queue()
+        self.__is_running = True
         try:
             await asyncio.create_task(self._runner())
         finally:
+            self.__is_running = False
             self.__log("finish main.")
 
     async def _runner(self) -> NoReturn:
@@ -219,10 +229,12 @@ class Bromine:
             "id": id_,
             "params": params
         }
-        if "__send_queue" in self.__dict__:
+        if self.__is_running:
+            # もしsend_queueがある時(実行中の時)
             self.ws_send("connect", body)
             self.__log(f"connect channel: {channel}, id: {id_}")
         else:
+            # ない時(実行前)
             self.__log(f"connect channel before run: {channel}, id: {id_}")
         return id_
 

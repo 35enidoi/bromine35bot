@@ -44,7 +44,6 @@ class Bromine_withmsk(BrCore.Bromine):
         self.INSTANCE = instance
         self.TOKEN = token
         self.__pendings: list[Callable[[], Coroutine[Any, Any, NoReturn]]] = []
-        self.is_running: bool = False
 
         # misskey.pyインスタンス作成
         self.mk = Misskey(address=self.INSTANCE, i=self.TOKEN)
@@ -63,7 +62,6 @@ class Bromine_withmsk(BrCore.Bromine):
             raise TypeError("関数はコルーチンでなければなりません。")
 
     async def main(self) -> NoReturn:
-        self.is_running = True
         pendings = asyncio.gather(*(i() for i in self.__pendings), return_exceptions=True)
         try:
             await super().main()
@@ -73,7 +71,6 @@ class Bromine_withmsk(BrCore.Bromine):
                 await pendings
             except asyncio.CancelledError:
                 pass
-            self.is_running = False
 
     async def api_post(self, endp: str, wttime: int, **dicts) -> requests.Response:
         """misskey.pyが対応していないエンドポイントなどに対して使うやつ
