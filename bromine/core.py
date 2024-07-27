@@ -16,15 +16,15 @@ class Bromine:
         loglevel: loggingのlogのレベル
         cooltime: 接続に失敗したときに待つ時間"""
         # uuid:[channelname, awaitablefunc, params]
-        self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]], dict[str, Any]]] = {}
+        self.__channels: dict[str, tuple[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]], dict[str, Any]]] = {}
         # uuid:tuple[isblock, awaitablefunc]
-        self._on_comeback: dict[str, tuple[bool, Callable[[], Coroutine[Any, Any, None]]]] = {}
+        self.__on_comebacks: dict[str, tuple[bool, Callable[[], Coroutine[Any, Any, None]]]] = {}
 
         # send_queueはここで作るとエラーが出るので型ヒントのみ
-        self._send_queue: asyncio.Queue[tuple[str, dict]]
+        self.__send_queue: asyncio.Queue[tuple[str, dict]]
 
         # 値の保存
-        self.COOL_TIME = cooltime
+        self.__COOL_TIME = cooltime
 
         self.WS_URL = f'wss://{instance}/streaming?i={token}'
 
@@ -47,7 +47,7 @@ class Bromine:
         """開始する関数"""
         self.__log("start main.")
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
-        self._send_queue = asyncio.Queue()
+        self.__send_queue = asyncio.Queue()
         try:
             await asyncio.create_task(self._runner())
         finally:
@@ -75,7 +75,7 @@ class Bromine:
 
                     # comebacksの処理
                     _cmbs: list[Coroutine[Any, Any, None]] = []
-                    for i in self._on_comeback.values():
+                    for i in self.__on_comebacks.values():
                         if i[0]:
                             # もしブロックしなければいけないcomebackなら待つ
                             await i[1]()
@@ -92,7 +92,7 @@ class Bromine:
                         # データ受け取り
                         data = json.loads(await ws.recv())
                         if data['type'] == 'channel':
-                            for i, v in self._channels.items():
+                            for i, v in self.__channels.items():
                                 if data["body"]["id"] == i:
                                     asyncio.create_task(v[1](data["body"]))
                                     break
@@ -111,7 +111,7 @@ class Bromine:
                 # websocketが死んだりタイムアウトした時の処理
                 self.__log(f"error occured:{e}")
                 connect_fail_count += 1
-                await asyncio.sleep(self.COOL_TIME)
+                await asyncio.sleep(self.__COOL_TIME)
                 if connect_fail_count > 5:
                     # Todo: 例外を投げる？
                     # 5回以上連続で失敗したとき長く寝るようにする
@@ -151,19 +151,19 @@ class Bromine:
             id_ = uuid.uuid4()
         if not asyncio.iscoroutinefunction(func):
             raise ValueError("関数がコルーチンでなければなりません。")
-        self._on_comeback[id_] = (block, func)
+        self.__on_comebacks[id_] = (block, func)
         return id_
 
     def del_comeback(self, id_: str) -> None:
         """comeback消す"""
-        self._on_comeback.pop(id_)
+        self.__on_comebacks.pop(id_)
 
     async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         """websocketを送るdaemon"""
         # すでに接続済みのchannelにconnectしたりしないようにするやつ
         already_connected_ids: set[str] = set()
         # まずはchannelsの再接続から始める
-        for i, v in self._channels.items():
+        for i, v in self.__channels.items():
             already_connected_ids.add(i)
             await ws.send(json.dumps({
                 "type": "connect",
@@ -175,8 +175,8 @@ class Bromine:
             }))
 
         # くえうえの初期化
-        while not self._send_queue.empty():
-            type_, body_ = await self._send_queue.get()
+        while not self.__send_queue.empty():
+            type_, body_ = await self.__send_queue.get()
             if type_ == "connect":
                 if body_["id"] in already_connected_ids:
                     # もうすでに送ったやつなので送らない
@@ -193,7 +193,7 @@ class Bromine:
         # あとはずっとqueueからgetしてそれを送る。
         while True:
             # 型:tuple(type:str, body:dict)
-            type_, body_ = await self._send_queue.get()
+            type_, body_ = await self.__send_queue.get()
             await ws.send(json.dumps({
                 "type": type_,
                 "body": body_
@@ -201,7 +201,7 @@ class Bromine:
 
     def ws_send(self, type_: str, body: dict) -> None:
         """ウェブソケットへsendするdaemonのqueueに送る奴"""
-        self._send_queue.put_nowait((type_, body))
+        self.__send_queue.put_nowait((type_, body))
 
     def ws_connect(self,
                    channel: str,
@@ -213,23 +213,22 @@ class Bromine:
             raise ValueError("func_がコルーチンじゃないです。")
         if id_ is None:
             id_ = str(uuid.uuid4())
-        self._channels[id_] = (channel, func_, params)
+        self.__channels[id_] = (channel, func_, params)
         body = {
             "channel": channel,
             "id": id_,
             "params": params
         }
-        if "_send_queue" in self.__dict__:
+        if "__send_queue" in self.__dict__:
             self.ws_send("connect", body)
             self.__log(f"connect channel: {channel}, id: {id_}")
-            
         else:
             self.__log(f"connect channel before run: {channel}, id: {id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
         """channelの接続解除に使う関数"""
-        channel = self._channels.pop(id_)[0]
+        channel = self.__channels.pop(id_)[0]
         body = {"id": id_}
         self.ws_send("disconnect", body)
         self.__log(f"disconnect channel: {channel}, id: {id_}")
