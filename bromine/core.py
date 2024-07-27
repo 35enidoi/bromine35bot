@@ -3,7 +3,7 @@ import asyncio
 import uuid
 import logging
 from functools import partial
-from typing import Any, Awaitable, Callable, NoReturn, Optional, Union
+from typing import Any, Callable, NoReturn, Optional, Union, Coroutine
 
 import websockets
 
@@ -20,9 +20,9 @@ class Bromine:
         self.V = 1.1
 
         # uuid:[channelname, awaitablefunc, params]
-        self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Awaitable[None]], dict[str, Any]]] = {}
+        self._channels: dict[str, tuple[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]], dict[str, Any]]] = {}
         # uuid:tuple[isblock, awaitablefunc]
-        self._on_comeback: dict[str, tuple[bool, Callable[[], Awaitable[None]]]] = {}
+        self._on_comeback: dict[str, tuple[bool, Callable[[], Coroutine[Any, Any, None]]]] = {}
 
         # send_queueはここで作るとエラーが出るので型ヒントのみ
         self._send_queue: asyncio.Queue[tuple[str, dict]]
@@ -73,7 +73,7 @@ class Bromine:
                     wsd = asyncio.create_task(self._ws_send_d(ws))
 
                     # comebacksの処理
-                    _cmbs: list[Awaitable[None]] = []
+                    _cmbs: list[Coroutine[Any, Any, None]] = []
                     for i in self._on_comeback.values():
                         if i[0]:
                             # もしブロックしなければいけないcomebackなら待つ
@@ -142,7 +142,10 @@ class Bromine:
                         pass
                     comebacks = None
 
-    def add_comeback(self, func: Callable[[], Awaitable[None]], id_: Optional[str] = None, block: bool = False) -> str:
+    def add_comeback(self,
+                     func: Callable[[], Coroutine[Any, Any, None]],
+                     id_: Optional[str] = None,
+                     block: bool = False) -> str:
         """comebackを作る"""
         if id_ is None:
             id_ = uuid.uuid4()
@@ -202,7 +205,7 @@ class Bromine:
 
     def ws_connect(self,
                    channel: str,
-                   func_: Callable[[dict[str, Any]], Awaitable[None]],
+                   func_: Callable[[dict[str, Any]], Coroutine[Any, Any, None]],
                    id_: Optional[str] = None,
                    **params) -> str:
         """channelに接続するときに使う関数 idを返す"""
