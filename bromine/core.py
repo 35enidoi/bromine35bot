@@ -225,7 +225,7 @@ class Bromine:
         }
         if "_send_queue" in self.__dict__:
             self.ws_send("connect", body)
-        self.__log(f"connect channel:{channel}, id:{id_}")
+        self.__log(f"connect channel: {channel}, id: {id_}")
         return id_
 
     def ws_disconnect(self, id_: str) -> None:
@@ -233,4 +233,4 @@ class Bromine:
         channel = self._channels.pop(id_)[0]
         body = {"id": id_}
         self.ws_send("disconnect", body)
-        self.__log(f"disconnect channel:{channel}, id:{id_}")
+        self.__log(f"disconnect channel: {channel}, id: {id_}")
