@@ -9,31 +9,37 @@ import websockets
 
 
 class Bromine:
+    """misskeyのAPIを使いやすくしたクラス
+
+    websocketの実装を一々作らなくても簡単にwebsocketの通信ができるようになります
+
+    Parameters
+    ----------
+    instance: str
+        インスタンス名
+    token: str
+        トークン"""
+
     def __init__(self, instance: str, token: str) -> None:
-        """bromineのcore
-        instance: 接続するインスタンス
-        token: トークン
-        loglevel: loggingのlogのレベル
-        cooltime: 接続に失敗したときに待つ時間"""
+        # 値の保存
+        self.__COOL_TIME = 5
+
+        # 値を保持するキューとか
         # uuid:[channelname, awaitablefunc, params]
         self.__channels: dict[str, tuple[str, Callable[[dict[str, Any]], Coroutine[Any, Any, None]], dict[str, Any]]] = {}
         # uuid:tuple[isblock, awaitablefunc]
         self.__on_comebacks: dict[str, tuple[bool, Callable[[], Coroutine[Any, Any, None]]]] = {}
-
         # send_queueはここで作るとエラーが出るので型ヒントのみ
         self.__send_queue: asyncio.Queue[tuple[str, dict]]
 
         # 実行中かどうかの変数
         self.__is_running: bool = False
 
-        # 値の保存
-        self.__COOL_TIME = 5
-
+        # websocketのURL
         self.WS_URL = f'wss://{instance}/streaming?i={token}'
 
         # logger作成
         self.__logger = logging.getLogger("Bromine")
-
         # logを簡単にできるよう部分適用する
         self.__log = partial(self.__logger.log, logging.DEBUG)
 
@@ -166,19 +172,53 @@ class Bromine:
 
     def add_comeback(self,
                      func: Callable[[], Coroutine[Any, Any, None]],
-                     id_: Optional[str] = None,
-                     block: bool = False) -> str:
-        """comebackを作る"""
-        if id_ is None:
-            id_ = uuid.uuid4()
-        if not asyncio.iscoroutinefunction(func):
-            raise ValueError("関数がコルーチンでなければなりません。")
-        self.__on_comebacks[id_] = (block, func)
-        return id_
+                     block: bool = False,
+                     id: Optional[str] = None) -> str:
+        """comebackを作る関数
 
-    def del_comeback(self, id_: str) -> None:
-        """comeback消す"""
-        self.__on_comebacks.pop(id_)
+        Parameters
+        ----------
+        func: CoroutineFunction
+            comeback時に実行する非同期関数
+        block: bool
+            websocketとの交信をブロッキングして実行するか
+        id: :obj:`str`, optional
+            識別id、ない場合自動生成される
+
+        Returns
+        -------
+        str
+            識別id
+
+        Raises
+        ------
+        ValueError
+            非同期関数funcがcoroutinefunctionでない時
+
+        Note
+        ----
+        返り値の識別idはdel_comebackで使用します"""
+        if id is None:
+            # もしIDがない時生成する
+            id = uuid.uuid4()
+        if not asyncio.iscoroutinefunction(func):
+            raise ValueError("非同期関数funcがcoroutinefunctionではありません。")
+        self.__on_comebacks[id] = (block, func)
+        return id
+
+    def del_comeback(self, id: str) -> None:
+        """comeback消すやつ
+
+        Parameter
+        ---------
+        id: str
+            識別id
+
+        Raises
+        ------
+        KeyError
+            識別idが不適のとき"""
+        self.__on_comebacks.pop(id)
 
     async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         """websocketを送るdaemon"""
@@ -196,7 +236,7 @@ class Bromine:
                 }
             }))
 
-        # くえうえの初期化
+        # queueの初期化
         while not self.__send_queue.empty():
             type_, body_ = await self.__send_queue.get()
             if type_ == "connect":
@@ -214,45 +254,88 @@ class Bromine:
 
         # あとはずっとqueueからgetしてそれを送る。
         while True:
-            # 型:tuple(type:str, body:dict)
             type_, body_ = await self.__send_queue.get()
             await ws.send(json.dumps({
                 "type": type_,
                 "body": body_
             }))
 
-    def ws_send(self, type_: str, body: dict) -> None:
-        """ウェブソケットへsendするdaemonのqueueに送る奴"""
-        self.__send_queue.put_nowait((type_, body))
+    def ws_send(self, type: str, body: dict[str, Any]) -> None:
+        """ウェブソケットへ送るキューに情報を追加するやつ
+
+        Parameters
+        ----------
+        type: str
+            type情報
+        body: dict[str, Any]
+            body情報"""
+        self.__send_queue.put_nowait((type, body))
 
     def ws_connect(self,
                    channel: str,
-                   func_: Callable[[dict[str, Any]], Coroutine[Any, Any, None]],
-                   id_: Optional[str] = None,
+                   func: Callable[[dict[str, Any]], Coroutine[Any, Any, None]],
+                   id: Optional[str] = None,
                    **params) -> str:
-        """channelに接続するときに使う関数 idを返す"""
-        if not asyncio.iscoroutinefunction(func_):
-            raise ValueError("func_がコルーチンじゃないです。")
-        if id_ is None:
-            id_ = str(uuid.uuid4())
-        self.__channels[id_] = (channel, func_, params)
+        """channelに接続する関数
+
+        Parameters
+        ----------
+        channel: str
+            チャンネル名
+        func: CoroutineFunction
+            反応があった時に実行される非同期関数
+        id: :obj:`str`, optional
+            識別id、もし指定されていない場合、自動生成される
+        **params:
+            接続する際のパラメーター
+
+        Returns
+        -------
+        str
+            識別id
+
+        Raises
+        -------
+        ValueError
+            非同期関数funcがcoroutinefunctionでない時
+
+        Note
+        ----
+        返り値の識別idはws_disconnectで使用します"""
+        if not asyncio.iscoroutinefunction(func):
+            raise ValueError("非同期関数funcがcoroutinefunctionではありません。")
+        if id is None:
+            # idがなかったら自動生成
+            id = str(uuid.uuid4())
+        # channelsに追加
+        self.__channels[id] = (channel, func, params)
         body = {
             "channel": channel,
-            "id": id_,
+            "id": id,
             "params": params
         }
         if self.__is_running:
             # もしsend_queueがある時(実行中の時)
             self.ws_send("connect", body)
-            self.__log(f"connect channel: {channel}, id: {id_}")
+            self.__log(f"connect channel: {channel}, id: {id}")
         else:
             # ない時(実行前)
-            self.__log(f"connect channel before run: {channel}, id: {id_}")
-        return id_
+            self.__log(f"connect channel before run: {channel}, id: {id}")
+        return id
 
-    def ws_disconnect(self, id_: str) -> None:
-        """channelの接続解除に使う関数"""
-        channel = self.__channels.pop(id_)[0]
-        body = {"id": id_}
+    def ws_disconnect(self, id: str) -> None:
+        """チャンネルを接続解除する関数
+
+        Parameters
+        ----------
+        id: str
+            識別id
+
+        Raises
+        ------
+        KeyError
+            識別idが不適のとき"""
+        channel = self.__channels.pop(id)[0]
+        body = {"id": id}
         self.ws_send("disconnect", body)
-        self.__log(f"disconnect channel: {channel}, id: {id_}")
+        self.__log(f"disconnect channel: {channel}, id: {id}")
