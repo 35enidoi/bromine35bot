@@ -9,7 +9,7 @@ import websockets
 
 
 class Bromine:
-    def __init__(self, instance: str, token: str, *, cooltime: int = 5) -> None:
+    def __init__(self, instance: str, token: str) -> None:
         """bromineのcore
         instance: 接続するインスタンス
         token: トークン
@@ -27,7 +27,7 @@ class Bromine:
         self.__is_running: bool = False
 
         # 値の保存
-        self.__COOL_TIME = cooltime
+        self.__COOL_TIME = 5
 
         self.WS_URL = f'wss://{instance}/streaming?i={token}'
 
@@ -45,6 +45,18 @@ class Bromine:
     @loglevel.setter
     def loglevel(self, level: int) -> None:
         self.__log = partial(self.__logger.log, level)
+
+    @property
+    def cooltime(self) -> int:
+        """websocketの接続が切れた時に再接続まで待つ時間"""
+        return self.__COOL_TIME
+
+    @cooltime.setter
+    def cooltime(self, time: int) -> None:
+        if time > 0:
+            self.__COOL_TIME = time
+        else:
+            ValueError("負の値です")
 
     @property
     def is_running(self) -> bool:
