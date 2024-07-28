@@ -35,10 +35,9 @@ class Bromine_withmsk(BrCore.Bromine):
                  instance: str,
                  token: str,
                  *,
-                 cooltime: int = 5,
-                 msk_loglevel: int = logging.DEBUG,) -> None:
+                 msk_loglevel: int = logging.DEBUG) -> None:
         """misskey.py付きになったBromine(お得！)"""
-        super().__init__(instance, token, cooltime=cooltime)
+        super().__init__(instance, token)
 
         # 変数作成
         self.INSTANCE = instance
