@@ -354,11 +354,15 @@ class Bromine35:
         await self.br.create_note(text="bot、動きます。:ablobblewobble:")
         await self.br.create_reaction("9iisgwj3rf", "✅")
 
-    async def fin(self, yoteigai: bool):
-        if yoteigai:
-            await self.br.create_note(text="bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:")
+    async def fin(self, yoteigai: bool, is_explosion: bool):
+        if is_explosion:
+            # 爆破した時
+            print("爆破された...")
         else:
-            await self.br.create_note(text="botとまります:blob_hello:")
+            if yoteigai:
+                await self.br.create_note(text="bot異常終了します:ablobcatcryingcute:\n@iodine53 異常終了したから調査しろ:blobhai:")
+            else:
+                await self.br.create_note(text="botとまります:blob_hello:")
         await self.br.create_reaction("9iisgwj3rf", "❌", Instant=True)
 
 
@@ -410,13 +414,13 @@ async def main():
                 pass
 
         if TESTMODE:
-            print("Fin...")
-        elif bakuha_event.is_set():
-            # もし爆破されたらprintするだけ
-            print("bakuhasareta...")
+            # テストモード時は特に何もしない
+            pass
         else:
-            # 終了処理
-            await brm.fin(isyoteigai)
+            # テストモードじゃない時、終了処理
+            await brm.fin(isyoteigai, bakuha_event.is_set())
+
+        print("Fin...")
 
 
 if __name__ == "__main__":
