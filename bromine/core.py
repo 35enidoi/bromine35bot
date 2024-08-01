@@ -37,10 +37,10 @@ class Bromine:
 
         # websocketのURL
         if token is not None:
-            self.WS_URL = f'wss://{instance}/streaming?i={token}'
+            self.__WS_URL = f'wss://{instance}/streaming?i={token}'
         else:
             # トークンがないときはパラメーターを消しとく
-            self.WS_URL = f'wss://{instance}/streaming'
+            self.__WS_URL = f'wss://{instance}/streaming'
 
         # logger作成
         self.__logger = logging.getLogger("Bromine")
@@ -80,30 +80,30 @@ class Bromine:
         self.__send_queue = asyncio.Queue()
         self.__is_running = True
         try:
-            await asyncio.create_task(self._runner())
+            await asyncio.create_task(self.__runner())
         finally:
             self.__is_running = False
             self.__log("finish main.")
 
-    async def _runner(self) -> NoReturn:
+    async def __runner(self) -> NoReturn:
         """websocketとの交信を行うメインdaemon"""
         # 何回連続で接続に失敗したかのカウンター
         connect_fail_count = 0
         # この変数たちは最初に接続失敗すると未定義になるから保険のため
-        # websocket_daemon(_ws_send_d)
+        # websocket_daemon(__ws_send_d)
         wsd: Union[None, asyncio.Task] = None
         # comebacks(asyncio.gather)
         comebacks: Union[None, asyncio.Future] = None
         while True:
             try:
-                async with websockets.connect(self.WS_URL) as ws:
+                async with websockets.connect(self.__WS_URL) as ws:
                     # ちゃんと通ってるかpingで確認
                     ping_wait = await ws.ping()
                     pong_latency = await ping_wait
                     self.__log(f"websocket connect success. latency: {pong_latency}s")
 
                     # 送るdaemonの作成
-                    wsd = asyncio.create_task(self._ws_send_d(ws))
+                    wsd = asyncio.create_task(self.__ws_send_d(ws))
 
                     # comebacksの処理
                     _cmbs: list[Coroutine[Any, Any, None]] = []
@@ -158,7 +158,7 @@ class Bromine:
             finally:
                 # 再接続する際、いろいろ初期化する
                 if type(wsd) is asyncio.Task:
-                    # _ws_send_dを止める
+                    # __ws_send_dを止める
                     wsd.cancel()
                     try:
                         await wsd
@@ -224,7 +224,7 @@ class Bromine:
             識別idが不適のとき"""
         self.__on_comebacks.pop(id)
 
-    async def _ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
+    async def __ws_send_d(self, ws: websockets.WebSocketClientProtocol) -> NoReturn:
         """websocketを送るdaemon"""
         # すでに接続済みのchannelにconnectしたりしないようにするやつ
         already_connected_ids: set[str] = set()
