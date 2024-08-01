@@ -17,10 +17,10 @@ class Bromine:
     ----------
     instance: str
         インスタンス名
-    token: str
+    token: :obj:`str`, optional
         トークン"""
 
-    def __init__(self, instance: str, token: str) -> None:
+    def __init__(self, instance: str, token: Optional[str] = None) -> None:
         # 値の保存
         self.__COOL_TIME = 5
 
@@ -36,7 +36,11 @@ class Bromine:
         self.__is_running: bool = False
 
         # websocketのURL
-        self.WS_URL = f'wss://{instance}/streaming?i={token}'
+        if token is not None:
+            self.WS_URL = f'wss://{instance}/streaming?i={token}'
+        else:
+            # トークンがないときはパラメーターを消しとく
+            self.WS_URL = f'wss://{instance}/streaming'
 
         # logger作成
         self.__logger = logging.getLogger("Bromine")
