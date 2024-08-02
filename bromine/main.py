@@ -313,7 +313,7 @@ class Bromine35:
                 res = await self.br.api_post("reversi/match", 30, userId=userid)
                 id_ = str(uuid4())
                 rv = reversi_sys(self, res.json(), id_)
-                self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
+                self.br.add_comeback(func=rv.comeback, id=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
                 # フォームは今のところ未対応みたい
 
@@ -330,7 +330,7 @@ class Bromine35:
                 reversi_sys.playing_user_list.append(userid)
                 id_ = str(uuid4())
                 rv = reversi_sys(self, game, id_)
-                self.br.add_comeback(func=rv.comeback, id_=rv.socketid, block=True)
+                self.br.add_comeback(func=rv.comeback, id=rv.socketid, block=True)
                 self.br.ws_connect("reversiGame", rv.interface, id_, gameId=rv.game_id)
         else:
             print("reversi anything comming")
