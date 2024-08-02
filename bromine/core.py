@@ -8,6 +8,21 @@ from typing import Any, Callable, NoReturn, Optional, Union, Coroutine
 import websockets
 
 
+class _BackgroundTasks(set):
+    """`runner`のバックグラウンド実行するタスクの管理をする集合"""
+    def add(self, element: asyncio.Task) -> None:
+        if type(element) is asyncio.Task:
+            element.add_done_callback(self.discard)
+            return super().add(element)
+        else:
+            raise TypeError("element is not asyncio.Task")
+
+    def tasks_cancel(self) -> None:
+        """タスク達をキャンセル"""
+        for i in self:
+            i.cancel()
+
+
 class Bromine:
     """misskeyのAPIを使いやすくしたクラス
 
@@ -79,13 +94,16 @@ class Bromine:
         # send_queueをinitで作るとattached to a different loopとかいうゴミでるのでここで宣言
         self.__send_queue = asyncio.Queue()
         self.__is_running = True
+        # バックグラウンドタスクの集合
+        backgrounds = _BackgroundTasks()
         try:
-            await asyncio.create_task(self.__runner())
+            await asyncio.create_task(self.__runner(backgrounds))
         finally:
+            backgrounds.tasks_cancel()
             self.__is_running = False
             self.__log("finish main.")
 
-    async def __runner(self) -> NoReturn:
+    async def __runner(self, background_tasks: _BackgroundTasks) -> NoReturn:
         """websocketとの交信を行うメインdaemon"""
         # 何回連続で接続に失敗したかのカウンター
         connect_fail_count = 0
@@ -126,7 +144,7 @@ class Bromine:
                         if data['type'] == 'channel':
                             for i, v in self.__channels.items():
                                 if data["body"]["id"] == i:
-                                    asyncio.create_task(v[1](data["body"]))
+                                    background_tasks.add(asyncio.create_task(v[1](data["body"])))
                                     break
                             else:
                                 self.__log("data come from unknown channel")
