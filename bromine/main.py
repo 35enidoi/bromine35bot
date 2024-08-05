@@ -14,8 +14,8 @@ from misskey import (
     exceptions as MiExceptions,
 )
 import requests
+import brcore as BrCore
 
-import core as BrCore
 from reversi import reversi_sys
 
 
