@@ -24,7 +24,7 @@ class _BackgroundTasks(set):
 
 
 class Bromine:
-    """misskeyのAPIを使いやすくしたクラス
+    """misskeyのwebsocketAPIを使いやすくしたクラス
 
     websocketの実装を一々作らなくても簡単にwebsocketの通信ができるようになります
 
