@@ -7,7 +7,9 @@ from datetime import timedelta
 import logging
 from functools import partial
 from typing import NoReturn, Union, Callable, Coroutine, Any
+from time import time
 import random
+from collections import deque
 
 from misskey import (
     Misskey,
@@ -43,6 +45,11 @@ class Bromine_withmsk(BrCore.Bromine):
         self.INSTANCE = instance
         self.TOKEN = token
         self.__pendings: list[Callable[[], Coroutine[Any, Any, NoReturn]]] = []
+        # ノートのレートリミット用時間の集まり(deque)
+        self.__ratelimit_time = 60
+        self.__ratelimit_queue_len = 5
+        self.__ratelimit_queue: deque[float] = deque((0 for _ in range(self.__ratelimit_queue_len)),
+                                                     maxlen=self.__ratelimit_queue_len)
 
         # misskey.pyインスタンス作成
         self.mk = Misskey(address=self.INSTANCE, i=self.TOKEN)
@@ -103,6 +110,15 @@ class Bromine_withmsk(BrCore.Bromine):
 
     async def create_note(self, **kargs) -> Union[dict, None]:
         """Misskey().notes_createのラッパー"""
+        def _check_ratelimit_acceded() -> bool:
+            return time() - (sum(self.__ratelimit_queue) / self.__ratelimit_queue_len) < self.__ratelimit_time
+
+        while _check_ratelimit_acceded():
+            # 投稿した数が短時間あたりに多い時
+            await asyncio.sleep(1)
+
+        self.__ratelimit_queue.append(time())  # 投稿した時間を追加
+
         try:
             note = await asyncio.to_thread(self.mk.notes_create, **kargs)
             self.__log(f"note create success. noteid: {note['createdNote']['id']}")
