@@ -166,6 +166,7 @@ class Bromine35:
         br.add_ws_type_id("emojiAdded", "ALLMATCH", self.on_emoji_added)
         br.add_ws_type_id("emojiUpdated", "ALLMATCH", self.on_emoji_updated)
         br.add_ws_type_id("emojiDeleted", "ALLMATCH", self.on_emoji_deleted)
+        br.add_ws_type_id("announcementCreated", "ALLMATCH", self.on_announcement)
         br.expect_info_func = self.onexpectinfo
 
     async def zyanken_starter(self):
@@ -386,12 +387,15 @@ class Bromine35:
             text += f"- `{emoji['name']}`\n"
         await self.br.create_note(text=text)
 
+    async def on_announcement(self, info):
+        announce = info["announcement"]
+        if announce["display"] == "normal" and not announce["forYou"]:
+            text = "お知らせが追加されたかも？:thinknyan:\nお知らせを見てみよう:eyes_blink:"
+            await self.br.create_note(text=text)
+
     async def onexpectinfo(self, info):
         """謎の場所からくる情報（謎）を処理する"""
-        if info["type"] == "announcementCreated":
-            if info["body"]["display"] == "normal" and not info["body"]["forYou"]:
-                text = "お知らせが追加されたかも？:thinknyan:\nお知らせを見てみよう:eyes_blink:"
-                await self.br.create_note(text=text)
+        print(f"expect info coming: {info['type']}")
 
     async def kaibunsyo(self, noteid: str):
         kaibunsyo = ""
