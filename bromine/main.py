@@ -163,6 +163,9 @@ class Bromine35:
         br.ws_connect("main", self.onnotify)
         br.ws_connect("localTimeline", self.onnote)
         br.ws_connect("reversi", self.onreversi)
+        br.add_ws_type_id("emojiAdded", "ALLMATCH", self.on_emoji_added)
+        br.add_ws_type_id("emojiUpdated", "ALLMATCH", self.on_emoji_updated)
+        br.add_ws_type_id("emojiDeleted", "ALLMATCH", self.on_emoji_deleted)
         br.expect_info_func = self.onexpectinfo
 
     async def zyanken_starter(self):
@@ -353,34 +356,42 @@ class Bromine35:
             print("reversi anything comming")
             print(info)
 
-    async def onexpectinfo(self, info):
-        """謎の場所からくる情報（謎）を処理する"""
-        if (infotype := info["type"]) == "emojiAdded":
-            emojiname = info["body"]["emoji"]["name"]
-            emojialiases = info["body"]["emoji"]["aliases"]
-            emojisensitive = info["body"]["emoji"]["isSensitive"]
-            text = f"""絵文字、増えたかも？:thinknyan: `emojiAdded`を検出。
+    async def on_emoji_added(self, info):
+        """絵文字追加時実行するやつ"""
+        emojiname = info["emoji"]["name"]
+        emojialiases = info["emoji"]["aliases"]
+        emojisensitive = info["emoji"]["isSensitive"]
+        text = f"""絵文字、増えたかも？:thinknyan: `emojiAdded`を検出。
 `{emojiname}`が追加 :{emojiname}:
 タグ; [{'、 '.join(emojialiases)}]
 センシティブ; {emojisensitive}"""
-            await self.br.create_note(text=text)
+        await self.br.create_note(text=text)
 
-        elif infotype == "emojiUpdated":
-            text = "絵文字に何か変更が来たかも？:thinknyan: `emojiUpdated`を検出。\n変更されたかもしれない絵文字達↓\n"
-            for emoji in info["body"]["emojis"]:
-                emojiname = emoji["name"]
-                emojialiases = emoji["aliases"]
-                emojisensitive = emoji["isSensitive"]
-                text += "-"*10 + "\n"
-                text += f"`{emojiname}`、:{emojiname}:\nタグ; [{'、 '.join(emojialiases)}]\nセンシティブ; {emojisensitive}\n"
-                text += "-"*10 + "\n"
-            await self.br.create_note(text=text)
+    async def on_emoji_updated(self, info):
+        """絵文字変更時実行するやつ"""
+        text = "絵文字に何か変更が来たかも？:thinknyan: `emojiUpdated`を検出。\n変更されたかもしれない絵文字達↓\n"
+        for emoji in info["emojis"]:
+            emojiname = emoji["name"]
+            emojialiases = emoji["aliases"]
+            emojisensitive = emoji["isSensitive"]
+            text += "-"*10 + "\n"
+            text += f"`{emojiname}`、:{emojiname}:\nタグ; [{'、 '.join(emojialiases)}]\nセンシティブ; {emojisensitive}\n"
+            text += "-"*10 + "\n"
+        await self.br.create_note(text=text)
 
-        elif infotype == "emojiDeleted":
-            text = "絵文字が削除:thinknyan: `emojiDeleted`を検出。\n削除された絵文字達;\n"
-            for emoji in info["body"]["emojis"]:
-                text += f"- `{emoji['name']}`\n"
-            await self.br.create_note(text=text)
+    async def on_emoji_deleted(self, info):
+        """絵文字削除時実行するやつ"""
+        text = "絵文字が削除されたかも？:thinknyan: `emojiDeleted`を検出。\n削除された絵文字達;\n"
+        for emoji in info["emojis"]:
+            text += f"- `{emoji['name']}`\n"
+        await self.br.create_note(text=text)
+
+    async def onexpectinfo(self, info):
+        """謎の場所からくる情報（謎）を処理する"""
+        if info["type"] == "announcementCreated":
+            if info["body"]["display"] == "normal" and not info["body"]["forYou"]:
+                text = "お知らせが追加されたかも？:thinknyan:\nお知らせを見てみよう:eyes_blink:"
+                await self.br.create_note(text=text)
 
     async def kaibunsyo(self, noteid: str):
         kaibunsyo = ""
