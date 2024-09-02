@@ -1,20 +1,21 @@
 from random import randint
 import asyncio
+from typing import Callable
 
-from .core import reversi_core
+from .core import ReversiCore
 
 
-class reversi_sys(reversi_core):
-
+class reversi_sys(ReversiCore):
     # ゲームのダブりを防ぐためのリスト
     playing_user_list = []
 
     def __init__(self, brm, content: dict, socketid: str) -> None:
         """Reversi system init"""
+        super().__init__()
         # testmodeの保存
         self.TESTMODE = brm.TESTMODE
         # reversi version
-        self.RV = reversi_core.RC_VERSION
+        self.RV = 2
         # useridの保存
         self.MY_USER_ID = brm.MY_USER_ID
         # bromineの保存
@@ -53,6 +54,15 @@ class reversi_sys(reversi_core):
         # テストモードならリバーシシステムが準備完了なことを言う
         if self.TESTMODE:
             print("reversi system on ready", f"gameid:{self.game_id}")
+
+    @property
+    def reversi_engine(self) -> Callable[[], tuple[int, tuple[int, int]]]:
+        if self.RV == 1:
+            return self.search_point
+        elif self.RV == 2:
+            return self.search_point_v2
+        elif self.RV == 3:
+            ...
 
     async def comeback(self):
         """カムバック時に実行される関数"""
@@ -154,14 +164,15 @@ class reversi_sys(reversi_core):
 
                 if self.colour:
                     # もし自分の色が黒だった場合、先行なのでどっか置かないといけない。
-                    pts = self.search_point()
+                    await asyncio.sleep(1)  # ちょっとまつ
+                    pts = self.reversi_engine()
                     if len(pts) != 0:
                         if self.llotheo:
                             mpts = [i for i in pts if i[0] == min(pts, key=lambda x: x[0])[0]]
                         else:
                             mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                         pt = mpts[randint(0, len(mpts)-1)]
-                        self.set_point(pos := self.postoyx(pt[1], rev=True))
+                        self.set_point(pos := self.yxtopos(*pt[1]))
                         self.br.ws_send("channel", {"id": self.socketid,
                                                     "type": "putStone",
                                                     "body": {"pos": pos}})
@@ -175,14 +186,7 @@ class reversi_sys(reversi_core):
                     self.set_point(body["pos"], rev=True)
 
                     # 置く場所の推測
-                    if self.RV < 2:
-                        # V1
-                        pts = self.search_point()
-                    elif self.RV < 3:
-                        # V2
-                        pts = self.search_point_v2()
-                    elif self.RV < 4:
-                        ...  # V3
+                    pts = self.reversi_engine()
 
                     if len(pts) != 0:
                         # 置ける場所が0個以上ある
@@ -197,29 +201,20 @@ class reversi_sys(reversi_core):
                         pt = mpts[randint(0, len(mpts)-1)]
 
                         # 内部の盤面に石を置いてから、石を置いたことをwebsocketの送る
-                        self.set_point(pos := self.postoyx(pt[1], rev=True))
+                        self.set_point(pos := self.yxtopos(*pt[1]))
                         self.br.ws_send("channel", {"id": self.socketid,
                                                     "type": "putStone",
                                                     "body": {"pos": pos}})
 
                         # 相手が打てないときの処理
-                        pt = self.search_point(True)
-                        if len(pt) == 0:
-                            # 相手が一個も打てない
-                            if self.check_valid_koma() != 0:
-                                # 盤面に空きがある
-                                await self.interface({"type": "enemycantput"})
+                        if self.enemycannotput():
+                            await self.interface({"type": "enemycantput"})
+
                     elif self.put_everywhere:
                         # どこにも置けるモードの時
-                        # 盤面の空きと座標をリスト化
-                        canput = []
-                        for y, i in enumerate(self.banmen):
-                            for x, r in enumerate(i):
-                                if r == 0:
-                                    canput.append((y, x))
-                        if len(canput) != 0:
-                            # 一個以上空きがある
-                            self.set_point(pos := self.postoyx(canput[randint(0, len(canput)-1)], rev=True))
+                        if len(self.valid_spaces) != 0:
+                            self.set_point(pos := self.yxtopos(*tuple(self.valid_spaces)[randint(0,
+                                                                                                 len(self.valid_spaces)-1)]))
                             self.br.ws_send("channel", {"id": self.socketid,
                                                         "type": "putStone",
                                                         "body": {"pos": pos}})
@@ -229,28 +224,19 @@ class reversi_sys(reversi_core):
                 await asyncio.sleep(1)
 
                 # 以下logの相手の時の処理と同じ(統一したいな)
-                if self.RV < 2:
-                    # V1
-                    pts = self.search_point()
-                elif self.RV < 3:
-                    # V2
-                    pts = self.search_point_v2()
-                elif self.RV < 4:
-                    ...  # V3
+                pts = self.reversi_engine()
                 if len(pts) != 0:
                     if self.llotheo:
                         mpts = [i for i in pts if i[0] == min(pts, key=lambda x: x[0])[0]]
                     else:
                         mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                     pt = mpts[randint(0, len(mpts)-1)]
-                    self.set_point(pos := self.postoyx(pt[1], rev=True))
+                    self.set_point(pos := self.yxtopos(*pt[1]))
                     self.br.ws_send("channel", {"id": self.socketid,
                                                 "type": "putStone",
                                                 "body": {"pos": pos}})
-                    pt = self.search_point(True)
-                    if len(pt) == 0:
-                        if self.check_valid_koma() != 0:
-                            await self.interface({"type": "enemycantput"})
+                    if self.enemycannotput():
+                        await self.interface({"type": "enemycantput"})
             else:
                 # まだ知らない`送られてくるもの`があるかも...?
                 print(info)

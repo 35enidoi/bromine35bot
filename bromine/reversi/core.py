@@ -1,173 +1,263 @@
-class reversi_core:
-    """reversi core"""
-    RC_VERSION = 2
-    banmen: list[list]
-    colour: bool
+from typing import Literal
+from statistics import mean
 
-    def core_set_colour(self, colour_: bool):
-        """colourをsetするやつ"""
-        self.colour = colour_
 
-    def create_banmen(self, map):
+class ReversiCore:
+    MOVE = ((1, 0),   (1, 1),  (0, 1),
+            (-1, 1),           (-1, 0),
+            (-1, -1), (0, -1), (1, -1))
+
+    def __init__(self) -> None:
+        self.__y: int = 0
+        self.__x: int = 0
+        self.__colour: bool = False
+
+        self._valid_spaces: set[tuple[int, int]] = set()
+        self._own_stones: set[tuple[int, int]] = set()
+        self._enemy_stones: set[tuple[int, int]] = set()
+        self._wall: set[tuple[int, int]] = set()
+
+        self._sides: set[tuple[int, int]] = set()
+        self._corners: set[tuple[int, int]] = set()
+        self._sumi: set[tuple[int, int]] = set()
+
+    @property
+    def valid_spaces(self) -> set[tuple[int, int]]:
+        return self._valid_spaces.copy()
+
+    def core_set_colour(self, arg: bool) -> None:
+        if isinstance(arg, bool):
+            self.__colour = arg
+        else:
+            raise TypeError
+
+    def create_banmen(self, map_: list[str]) -> None:
         """盤面作成関数"""
-        # 1を自分、2を相手とする
-        banmen: list[list] = []
-        for i, v in enumerate(map):
-            banmen.append([])
-            for r in list(v):
-                if r == "-":
+        y = len(map_)
+        if y == 0:
+            x = 0  # 盤面が存在しないけど一応例外として
+        else:
+            x = len(map_[0])
+
+        valid_space = set()
+        own_space = set()
+        enemy_space = set()
+        wall = set()
+
+        if self.__colour:
+            own_stone_colour = "b"
+            enemy_stone_colour = "w"
+        else:
+            own_stone_colour = "w"
+            enemy_stone_colour = "b"
+
+        for posy, v in enumerate(map_):
+            for posx, val in enumerate(v):
+                if val == "-":
                     # 空白
-                    banmen[i].append(0)
-                elif r == "b":
-                    # 黒
-                    banmen[i].append(1 if self.colour else 2)
-                elif r == "w":
-                    # 白
-                    banmen[i].append(2 if self.colour else 1)
+                    valid_space.add((posy, posx))
+                elif val == own_stone_colour:
+                    # 自分のやつ
+                    own_space.add((posy, posx))
+                elif val == enemy_stone_colour:
+                    # 敵のやつ
+                    enemy_space.add((posy, posx))
                 else:
                     # 壁
-                    banmen[i].append(3)
-        self.banmen = banmen
+                    wall.add((posy, posx))
 
-    def set_point(self, pos: int, rev: bool = False):
-        """駒設置関数"""
-        Y, X = self.postoyx(pos)
-        self.banmen[Y][X] = (2 if rev else 1)
-        for y, x in self.point_search(Y, X, rev):
-            self.banmen[y][x] = (2 if rev else 1)
+        self._banmen_update(y-1, x-1, valid_space, own_space, enemy_space, wall)
+
+    def _banmen_update(self,
+                       y: int,
+                       x: int,
+                       valid: set[tuple[int, int]],
+                       own: set[tuple[int, int]],
+                       enemy: set[tuple[int, int]],
+                       wall: set[tuple[int, int]]) -> None:
+        if y == 0 and x == 0:
+            # なんもないとき変になるのを対策
+            self.__y = 0
+            self.__x = 0
+        else:
+            self.__y = y
+            self.__x = x
+
+        self._valid_spaces = valid.copy()
+        self._own_stones = own.copy()
+        self._enemy_stones = enemy.copy()
+        self._wall = wall.copy()
+
+        self._sides = set()
+        self._corners = set()
+        self._sumi: set[tuple[int, int]] = set()
+
+        for y_, x_ in self._valid_spaces:
+            side_check = self.__check_side(y_, x_)
+            if side_check == 2:
+                # 角
+                self._corners.add((y_, x_))
+            elif side_check == 1:
+                # 辺
+                self._sides.add((y_, x_))
+
+        for y_, x_ in self._valid_spaces:
+            if self.__check_sumi(y_, x_):
+                self._sumi.add((y_, x_))
 
     def search_point_v2(self) -> list[tuple[int, tuple[int, int]]]:
-        """駒探す関数v2 一手読む"""
-        # 最初の盤面保存
-        fbeforebanmen = [[i for i in r] for r in self.banmen]
-        points = []
-        for first, yx in self.search_point():
-            # まずは置く
-            self.set_point(self.postoyx(yx, rev=True))
-            # 辺、あるいは角にあるか調べる
-            if (fs := self.check_side(yx)) == 2:
-                # 角にある
-                first += 120
-            elif self.check_sumi(yx):
-                # 危ない場所(隅)にある
-                first -= 60
-            elif fs == 1:
-                # 辺にある
-                first += 15
-            # 置いた場所を保存
-            tbeforebanmen = [[i for i in r] for r in self.banmen]
-            if len(enemycanput := self.search_point(True)) != 0:
-                # 敵が置ける場所がある場合
-                epts = sum(map(lambda x: x[0], enemycanput))//2
-                # 辺、あるいは角に置けるか調べる
-                if any((self.check_side(i[1]) == 2) for i in enemycanput):
-                    # 角に置けてしまうとき
-                    epts += 120
-                elif any((self.check_side(i[1]) == 1) for i in enemycanput):
-                    # 辺に置けてしまうとき
-                    epts += 15
+        # 仮想リバーシ環境を作成
+        rc = ReversiCore()
+        rc._banmen_update(self.__y, self.__x, self._valid_spaces, self._own_stones, self._enemy_stones, self._wall)
+
+        points: list[tuple[int, tuple[int, int]]] = []
+
+        for value, yx in rc.search_point():
+            y, x = yx
+            point = 0
+            rc._set_point(y, x)
+
+            if (position := (y, x)) in rc._corners:
+                # 角にあるとき
+                point += 100
+            elif position in rc._sumi:
+                # 隅にある時(辺と被る可能性あるので先に)
+                point -= 35
+            elif position in rc._sides:
+                # 辺にある時
+                point += 15
+
+            # 取れる数も追加しておく
+            point += value
+
+            if len(rc._enemy_stones) == 0:
+                # ここに置けば勝てるということなので絶対にここに置く
+                point += 99999999999
+
+            enemypoints: list[int] = []
+            for enemy_value, enemy_yx in rc.search_point(rev=True):
+                enemy_y, enemy_x = enemy_yx
+                enemypoint = 0
+                if (enemyposition := (enemy_y, enemy_x)) in rc._corners:
+                    # 相手が角におけるとき
+                    enemypoint -= 100
+                elif enemyposition in rc._sumi:
+                    # 相手が隅におけるとき
+                    enemypoint += 35
+                elif enemyposition in rc._sides:
+                    # 相手が辺における時
+                    enemypoint -= 15
+
+                # 同様
+                enemypoint -= enemy_value
+
+                enemypoints.append(enemypoint)
+
+            # 合計を計算
+            if len(enemypoints) != 0:
+                points.append((int(point + mean(enemypoints)), position))
             else:
-                # 敵がどこにも置けない(Zero divisionになるので回避)
-                if len(self.search_point()) == 0:
-                    # 自分の番が回ってこない=終了なのでここに置けば勝てる
-                    points.append((2147483647, yx))
-                    break
-                epts = 0
-            # 自分が置いた時のポイントのリスト
-            cpts = []
-            for _, yx2 in enemycanput:
-                # 敵の攻撃を置く
-                self.set_point(self.postoyx(yx2, True), True)
-                if len(mecanput := self.search_point()):
-                    # 一手後における場所があるとき
-                    cs = (sum(map(lambda x: x[0], mecanput))/len(mecanput))
-                    if any(self.check_side(i[1]) == 2 for i in mecanput):
-                        # 角における
-                        cs += 120
-                    elif any(self.check_side(i[1]) == 1 for i in mecanput):
-                        # 辺における
-                        cs += 15
-                    cpts.append(cs)
-                else:
-                    cpts.append(0)
-                # 盤面を一個戻す
-                self.banmen = [[i for i in r] for r in tbeforebanmen]
-            if len(cpts) != 0:
-                # 一手以上置ける場合
-                points.append((first-epts+(sum(cpts)/len(cpts)), yx))
-            else:
-                # 一手も置けない場合(Zero division対策)
-                points.append((first-epts, yx))
-            # 盤面を初期化
-            self.banmen = [[i for i in r] for r in fbeforebanmen]
+                points.append((point, position))
+
+            # 初期化
+            rc._banmen_update(self.__y, self.__x, self._valid_spaces, self._own_stones, self._enemy_stones, self._wall)
+
         return points
 
     def search_point(self, rev: bool = False) -> list[tuple[int, tuple[int, int]]]:
         """駒を置ける場所を探す関数"""
         points = []
 
-        for y, i in enumerate(self.banmen):
-            for x, r in enumerate(i):
-                # その場所が空白であるか
-                if r == 0:
-                    # pointが0ではない(一つ以上取れる場合)pointsに入れる
-                    if (point := len(self.point_search(y, x, rev))) != 0:
-                        points.append((point, (y, x)))
+        for y, x in self._valid_spaces:
+            if (point := self.__point_search_num(y, x, rev)) != 0:
+                points.append((point, (y, x)))
+
         return points
 
-    def point_search(self, y: int, x: int, rev: bool = False) -> tuple[tuple[int, int]]:
-        """駒を置いた時に裏返せる場所の座標のタプルを返す関数"""
-        #       上　　右上　　右　　右下　　下　　左下　　　左　　　左上
-        move = ((1, 0),   (1, 1),  (0, 1),
-                (-1, 1),           (-1, 0),
-                (-1, -1), (0, -1), (1, -1))
-        # 裏返せる場所のリスト
-        canrev: list[tuple[int, int]] = []
-        for v, s in move:
+    def set_point(self, pos: int, rev: bool = False) -> None:
+        self._set_point(*self.postoyx(pos), rev)
+
+    def _set_point(self, y: int, x: int, rev: bool = False) -> None:
+        if rev:
+            my_stones = self._enemy_stones
+            enemy_stones = self._own_stones
+        else:
+            my_stones = self._own_stones
+            enemy_stones = self._enemy_stones
+
+        self._valid_spaces.remove((y, x))
+        my_stones.add((y, x))
+        for i in self.__point_search(y, x, rev):
+            my_stones.add(i)
+            enemy_stones.remove(i)
+
+    def __point_search(self, y: int, x: int, rev: bool = False) -> list[tuple[int, int]]:
+        can_reverse = []
+        if rev:
+            my_stone = self._enemy_stones
+            enemy_stone = self._own_stones
+        else:
+            my_stone = self._own_stones
+            enemy_stone = self._enemy_stones
+
+        for y_, x_ in self.MOVE:
             revlist: list[tuple[int, int]] = []
 
-            # komaが2(相手の駒)だったらrevlistにぶち込む
-            # komaが1だったらrevlistに基づき裏返す
-            # revがTrueだと逆(相手の攻勢)
-            try:
-                n = 1
-                while True:
-                    if (Y := y+v*n) < 0 or (X := x+s*n) < 0:
-                        break
+            n = 1
+            while 0 <= (Y := y+y_*n) <= self.__y and 0 <= (X := x+x_*n) <= self.__x:
+                # 盤面の範囲内にいる間
 
-                    if (koma := self.banmen[Y][X]) == (2 if rev else 1):
-                        canrev += revlist
-                        break
-                    elif koma == (1 if rev else 2):
-                        revlist.append((Y, X))
-                        n += 1
-                    else:
-                        break
-            except IndexError:
-                pass
+                if (position := (Y, X)) in my_stone:
+                    # もしそこが自分の石だったら
+                    if len(revlist) != 0:
+                        # 隣の場所じゃなかったら
+                        can_reverse += revlist
+                    break
+                elif position in enemy_stone:
+                    # 相手の石だったら
+                    revlist.append(position)
+                    n += 1
+                else:
+                    # 空白とか壁とかだったら
+                    break
 
-        return canrev
+        return can_reverse
 
-    def check_side(self, yx: tuple[int, int]) -> int:
+    def __point_search_num(self, y: int, x: int, rev: bool = False) -> int:
+        num = 0
+
+        if rev:
+            my_stone = self._enemy_stones
+            enemy_stone = self._own_stones
+        else:
+            my_stone = self._own_stones
+            enemy_stone = self._enemy_stones
+
+        for y_, x_ in self.MOVE:
+            n = 1
+            while 0 <= (Y := y+y_*n) <= self.__y and 0 <= (X := x+x_*n) <= self.__x:
+                # 盤面の範囲内にいる間
+                if (position := (Y, X)) in my_stone:
+                    # もしそこが自分の石だったら
+                    num += n - 1
+                    break
+                elif position in enemy_stone:
+                    # 相手の石だったら
+                    n += 1
+                else:
+                    # 空白とか壁とかだったら
+                    break
+
+        return num
+
+    def __check_side(self, y: int, x: int) -> Literal[0, 1, 2]:
         """2で角、1で辺、0でなんもなし"""
         # CAUTION なんか挙動が変な気がする(気のせいだろうか)
 
-        #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
-        sides = ((1, 0),   (1, 1),  (0, 1),
-                 (-1, 1),           (-1, 0),
-                 (-1, -1), (0, -1), (1, -1))
         iswall: list[bool] = []
-        # 壁があるかを検索
-        for i in sides:
-            try:
-                if yx[0]+i[0] < 0 or yx[1]+i[1] < 0:
-                    iswall.append(True)
-                elif self.banmen[yx[0]+i[0]][yx[1]+i[1]] == 3:
-                    iswall.append(True)
-                else:
-                    iswall.append(False)
-            except IndexError:
-                iswall.append(True)
+        for y_, x_ in self.MOVE:
+            iswall.append(((Y := y + y_) < 0 or Y > self.__y or (X := x + x_) < 0 or X > self.__x or (Y, X) in self._wall))
+
         # その場所から対照的に見て
         # 壁が対照的にあるか
         checkandlist = [(iswall[i] and iswall[i+4]) for i in range(4)]
@@ -177,51 +267,38 @@ class reversi_core:
         checkislist = [(iswall[i] is not iswall[i+4]) for i in range(4)]
 
         # 角の判別
-        for i, v in enumerate(checkandlist):
-            if v:
+        if all(checkislist):
+            return 2
+        for pos, val in enumerate(checkandlist):
+            if val:
                 islist = checkislist.copy()
-                islist.pop(i)
+                islist.pop(pos)
                 if all(islist):
                     return 2
 
         # 辺の判別
-        for i, v in enumerate(rcheckandlist):
-            if v:
+        for pos, val in enumerate(rcheckandlist):
+            if val:
                 islist = checkislist.copy()
-                islist.pop(i)
+                islist.pop(pos)
                 if all(islist):
                     return 1
 
         # 角でも辺でもない、つまりなんもなし。
         return 0
 
-    def check_sumi(self, yx: tuple[int, int]) -> bool:
-        """隅(隣が角)にあるか確認する奴"""
-        #       上　　  右上　　右　 右下　　下　   左下　　左　　　左上
-        sides = ((1, 0),   (1, 1),  (0, 1),
-                 (-1, 1),           (-1, 0),
-                 (-1, -1), (0, -1), (1, -1))
-
-        for i in sides:
-            if self.check_side((yx[0]+i[0], yx[1]+i[1])) == 2:
+    def __check_sumi(self, y: int, x: int) -> bool:
+        for y_, x_ in self.MOVE:
+            if (y + y_, x + x_) in self._corners:
                 return True
         else:
             return False
 
-    def check_valid_koma(self) -> int:
-        """盤面の空きを数える関数"""
-        num = 0
-        for i in self.banmen:
-            num += i.count(0)
-        return num
+    def postoyx(self, pos: int) -> tuple[int, int]:
+        return pos//(self.__x + 1), pos % (self.__x + 1)
 
-    def postoyx(self, pos, rev: bool = False):
-        """pos to yx.
+    def yxtopos(self, y: int, x: int) -> int:
+        return y*(self.__x + 1) + x
 
-        if rev, yx to pos.
-
-        開発環境が3.9.6なのでUnion(|)を使うのにimportが必要なので型推測書けない(importくらいさぼるな)"""
-        yoko = len(self.banmen[0])
-        if rev:
-            return yoko*pos[0] + pos[1]
-        return pos//yoko, pos % yoko
+    def enemycannotput(self) -> bool:
+        return len(self.search_point(True)) == 0 and len(self._valid_spaces) != 0
