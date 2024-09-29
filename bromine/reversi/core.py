@@ -22,12 +22,22 @@ class ReversiCore:
         self._sumi: set[tuple[int, int]] = set()
 
     @property
+    def x(self) -> int:
+        return self.__x + 1
+
+    @property
+    def y(self) -> int:
+        return self.__y + 1
+
+    @property
     def valid_spaces(self) -> set[tuple[int, int]]:
         return self._valid_spaces.copy()
 
     def core_set_colour(self, arg: bool) -> None:
         if isinstance(arg, bool):
-            self.__colour = arg
+            if arg is not self.__colour:
+                self.__colour = arg
+                self._own_stones, self._enemy_stones = self._enemy_stones, self._own_stones
         else:
             raise TypeError
 
@@ -75,7 +85,10 @@ class ReversiCore:
                        own: set[tuple[int, int]],
                        enemy: set[tuple[int, int]],
                        wall: set[tuple[int, int]]) -> None:
-        if y == 0 and x == 0:
+
+        check_side = self.__y != y or self.__x != x or self._wall != wall
+
+        if y == -1 and x == -1:
             # なんもないとき変になるのを対策
             self.__y = 0
             self.__x = 0
@@ -92,18 +105,19 @@ class ReversiCore:
         self._corners = set()
         self._sumi: set[tuple[int, int]] = set()
 
-        for y_, x_ in self._valid_spaces:
-            side_check = self.__check_side(y_, x_)
-            if side_check == 2:
-                # 角
-                self._corners.add((y_, x_))
-            elif side_check == 1:
-                # 辺
-                self._sides.add((y_, x_))
+        if check_side:
+            for y_, x_ in self._valid_spaces:
+                side_check = self.__check_side(y_, x_)
+                if side_check == 2:
+                    # 角
+                    self._corners.add((y_, x_))
+                elif side_check == 1:
+                    # 辺
+                    self._sides.add((y_, x_))
 
-        for y_, x_ in self._valid_spaces:
-            if self.__check_sumi(y_, x_):
-                self._sumi.add((y_, x_))
+            for y_, x_ in self._valid_spaces:
+                if self.__check_sumi(y_, x_):
+                    self._sumi.add((y_, x_))
 
     def search_point_v2(self) -> list[tuple[int, tuple[int, int]]]:
         # 仮想リバーシ環境を作成
@@ -154,7 +168,7 @@ class ReversiCore:
                 enemypoints.append(enemypoint)
 
             # 合計を計算
-            if len(enemypoints) != 0:
+            if enemypoints != []:
                 points.append((int(point + mean(enemypoints)), position))
             else:
                 points.append((point, position))
@@ -173,6 +187,23 @@ class ReversiCore:
                 points.append((point, (y, x)))
 
         return points
+
+    def search_point_onlysearch(self, rev: bool = False) -> list[tuple[int, int]]:
+        """駒を置ける場所だけを探す関数"""
+        points = []
+
+        for y, x in self._valid_spaces:
+            if self.__point_search_bool(y, x, rev):
+                points.append((y, x))
+
+        return points
+
+    def search_point_onlysearch_just_bool(self, rev: bool = False) -> bool:
+        for y, x in self._valid_spaces:
+            if self.__point_search_bool(y, x, rev):
+                return True
+
+        return False
 
     def set_point(self, pos: int, rev: bool = False) -> None:
         self._set_point(*self.postoyx(pos), rev)
@@ -209,7 +240,7 @@ class ReversiCore:
 
                 if (position := (Y, X)) in my_stone:
                     # もしそこが自分の石だったら
-                    if len(revlist) != 0:
+                    if revlist != []:
                         # 隣の場所じゃなかったら
                         can_reverse += revlist
                     break
@@ -249,6 +280,32 @@ class ReversiCore:
                     break
 
         return num
+
+    def __point_search_bool(self, y: int, x: int, rev: bool = False) -> bool:
+        if rev:
+            my_stone = self._enemy_stones
+            enemy_stone = self._own_stones
+        else:
+            my_stone = self._own_stones
+            enemy_stone = self._enemy_stones
+
+        for y_, x_ in self.MOVE:
+            n = 1
+            while 0 <= (Y := y+y_*n) <= self.__y and 0 <= (X := x+x_*n) <= self.__x:
+                # 盤面の範囲内にいる間
+                if (position := (Y, X)) in my_stone:
+                    # もしそこが自分の石だったら
+                    if n == 1:
+                        break
+                    return True
+                elif position in enemy_stone:
+                    # 相手の石だったら
+                    n += 1
+                else:
+                    # 空白とか壁とかだったら
+                    break
+
+        return False
 
     def __check_side(self, y: int, x: int) -> Literal[0, 1, 2]:
         """2で角、1で辺、0でなんもなし"""
@@ -295,10 +352,13 @@ class ReversiCore:
             return False
 
     def postoyx(self, pos: int) -> tuple[int, int]:
-        return pos//(self.__x + 1), pos % (self.__x + 1)
+        return pos//self.x, pos % self.x
 
     def yxtopos(self, y: int, x: int) -> int:
-        return y*(self.__x + 1) + x
+        return y*self.x + x
 
     def enemycannotput(self) -> bool:
-        return len(self.search_point(True)) == 0 and len(self._valid_spaces) != 0
+        return not self.search_point_onlysearch_just_bool(True)
+
+    def is_fleeze(self) -> bool:
+        return not self.search_point_onlysearch_just_bool() and not self.search_point_onlysearch_just_bool(rev=True)
