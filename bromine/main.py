@@ -163,10 +163,10 @@ class Bromine35:
         br.ws_connect("main", self.onnotify)
         br.ws_connect("localTimeline", self.onnote)
         br.ws_connect("reversi", self.onreversi)
-        br.add_ws_type_id("emojiAdded", "ALLMATCH", self.on_emoji_added)
-        br.add_ws_type_id("emojiUpdated", "ALLMATCH", self.on_emoji_updated)
-        br.add_ws_type_id("emojiDeleted", "ALLMATCH", self.on_emoji_deleted)
-        br.add_ws_type_id("announcementCreated", "ALLMATCH", self.on_announcement)
+        br._add_ws_type_id("emojiAdded", "ALLMATCH", self.on_emoji_added)
+        br._add_ws_type_id("emojiUpdated", "ALLMATCH", self.on_emoji_updated)
+        br._add_ws_type_id("emojiDeleted", "ALLMATCH", self.on_emoji_deleted)
+        br._add_ws_type_id("announcementCreated", "ALLMATCH", self.on_announcement)
         br.expect_info_func = self.onexpectinfo
 
     async def zyanken_starter(self):
@@ -340,7 +340,7 @@ class Bromine35:
 
                 # # フォーム送信
                 # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in rv._form.items()]
-                # self.br.ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
+                # self.br._ws_send("channel", {id:rv.socketid, type:"init-form", body:form})
         elif info["type"] == "matched":
             game = info["body"]["game"]
             userid = game[f"user{2 if game['user1Id'] == MY_USER_ID else 1}"]["id"]

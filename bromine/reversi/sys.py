@@ -49,7 +49,7 @@ class reversi_sys(ReversiCore):
         # }
         # # フォーム
         # form = [{"id":i, "type":v[0], "label":v[1], "value":v[2]}for i, v in self._form.items()]
-        # self.br.ws_send("channel", {id:self.socketid, type:"init-form", body:form})
+        # self.br._ws_send("channel", {id:self.socketid, type:"init-form", body:form})
 
         # テストモードならリバーシシステムが準備完了なことを言う
         if self.TESTMODE:
@@ -118,9 +118,9 @@ class reversi_sys(ReversiCore):
                 # 自分がself.okじゃない
                 if info["body"][f"user{2 if self.user1 else 1}"]:
                     # 相手の合図の場合(分けてる理由は無限ループになるから)
-                    self.br.ws_send("channel", {"id": self.socketid,
-                                                "type": "ready",
-                                                "body": self.ok})
+                    self.br._ws_send("channel", {"id": self.socketid,
+                                                 "type": "ready",
+                                                 "body": self.ok})
         else:
             # ここからは対戦中あるいは対戦後に送られてくる
             if type_ == "ended":
@@ -173,9 +173,9 @@ class reversi_sys(ReversiCore):
                             mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                         pt = mpts[randint(0, len(mpts)-1)]
                         self.set_point(pos := self.yxtopos(*pt[1]))
-                        self.br.ws_send("channel", {"id": self.socketid,
-                                                    "type": "putStone",
-                                                    "body": {"pos": pos}})
+                        self.br._ws_send("channel", {"id": self.socketid,
+                                                     "type": "putStone",
+                                                     "body": {"pos": pos}})
             elif type_ == "log":
                 # 石が置かれたときに来る奴
                 body = info["body"]
@@ -202,9 +202,9 @@ class reversi_sys(ReversiCore):
 
                         # 内部の盤面に石を置いてから、石を置いたことをwebsocketの送る
                         self.set_point(pos := self.yxtopos(*pt[1]))
-                        self.br.ws_send("channel", {"id": self.socketid,
-                                                    "type": "putStone",
-                                                    "body": {"pos": pos}})
+                        self.br._ws_send("channel", {"id": self.socketid,
+                                                     "type": "putStone",
+                                                     "body": {"pos": pos}})
 
                         # 相手が打てないときの処理
                         if self.enemycannotput():
@@ -215,9 +215,9 @@ class reversi_sys(ReversiCore):
                         if len(self.valid_spaces) != 0:
                             self.set_point(pos := self.yxtopos(*tuple(self.valid_spaces)[randint(0,
                                                                                                  len(self.valid_spaces)-1)]))
-                            self.br.ws_send("channel", {"id": self.socketid,
-                                                        "type": "putStone",
-                                                        "body": {"pos": pos}})
+                            self.br._ws_send("channel", {"id": self.socketid,
+                                                         "type": "putStone",
+                                                         "body": {"pos": pos}})
             elif type_ == "enemycantput":
                 # 相手が打てないとき
                 # 処理が速すぎてたまにバグるのでちょっと待つ
@@ -232,9 +232,9 @@ class reversi_sys(ReversiCore):
                         mpts = [i for i in pts if i[0] == max(pts, key=lambda x: x[0])[0]]
                     pt = mpts[randint(0, len(mpts)-1)]
                     self.set_point(pos := self.yxtopos(*pt[1]))
-                    self.br.ws_send("channel", {"id": self.socketid,
-                                                "type": "putStone",
-                                                "body": {"pos": pos}})
+                    self.br._ws_send("channel", {"id": self.socketid,
+                                                 "type": "putStone",
+                                                 "body": {"pos": pos}})
                     if self.enemycannotput():
                         await self.interface({"type": "enemycantput"})
             else:
